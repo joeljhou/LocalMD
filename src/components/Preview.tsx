@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import matter from 'gray-matter';
+import yaml from 'js-yaml';
 import { ChevronDown, ChevronRight, Calendar, User, Tag, Layout } from 'lucide-react';
 
 interface PreviewProps {
@@ -21,8 +21,25 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
 
   useEffect(() => {
     try {
-      // gray-matter requires --- to be at the very start, so trim leading whitespace
-      const { content: mdContent, data } = matter(content.trimStart());
+      // Custom Front Matter parsing
+      const FRONT_MATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---/;
+      const match = content.trimStart().match(FRONT_MATTER_REGEX);
+      
+      let mdContent = content;
+      let data: Record<string, any> = {};
+
+      if (match) {
+        try {
+          const parsed = yaml.load(match[1]);
+          if (typeof parsed === 'object' && parsed !== null) {
+            data = parsed as Record<string, any>;
+            // Extract content after front matter
+            mdContent = content.trimStart().slice(match[0].length).trimStart();
+          }
+        } catch (e) {
+          console.error('YAML parsing error:', e);
+        }
+      }
       
       // Normalize keys
       const normalizedData = { ...data };
