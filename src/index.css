@@ -1,0 +1,55 @@
+@import "tailwindcss";
+@import "./styles/themes.css";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+}
+
+@layer base {
+  body {
+    @apply antialiased text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950 transition-colors duration-200;
+  }
+}
+
+/* Custom scrollbar for editor/preview */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
+}
+
+/* React Split Gutter Styles */
+.gutter {
+  background-color: var(--c-border);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.gutter:hover {
+  background-color: var(--c-brand);
+}
+
+.gutter.gutter-horizontal {
+  cursor: col-resize;
+  width: 2px !important; /* Force width */
+}
