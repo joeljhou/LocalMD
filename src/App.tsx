@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Split from 'react-split';
+import { get, set } from 'idb-keyval';
 import { Header } from './components/Header';
 import { Editor } from './components/Editor';
 import { Preview } from './components/Preview';
@@ -12,13 +13,72 @@ function App() {
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isModified, setIsModified] = useState(false);
-  const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
+  
+  // Initialize from localStorage
+  const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>(() => {
+    return (localStorage.getItem('view-mode') as 'split' | 'edit' | 'preview') || 'split';
+  });
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem('font-size');
+    return saved ? parseInt(saved, 10) : 16;
+  });
+
   const [scrollRatio, setScrollRatio] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [fontSize, setFontSize] = useState(16);
   const { theme, toggleTheme, accent, changeAccent } = useTheme();
   
   const lastModifiedRef = useRef<number>(0);
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem('view-mode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('font-size', fontSize.toString());
+  }, [fontSize]);
+
+  useEffect(() => {
+    const restoreDirectory = async () => {
+      try {
+        const handle = await get('directory-handle');
+        if (handle) {
+          // Verify permission
+          // @ts-ignore
+          const options = { mode: 'read' };
+          if ((await handle.queryPermission(options)) === 'granted') {
+             setDirectoryHandle(handle);
+          } else {
+             // Request permission? 
+             // We can't request directly on load without user gesture usually.
+             // But we can keep it and maybe show a button "Restore Folder"?
+             // For now, let's just set it. If we try to access, it might prompt or fail.
+             // Actually, Chrome requires user gesture to verify permission.
+             // Let's set it, and Sidebar might fail to list if not permitted.
+             // Better strategy: Set it, but we might need to handle permission request in Sidebar or here.
+             // For "reopen", let's try to set it.
+             setDirectoryHandle(handle);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to restore directory', err);
+      }
+    };
+    restoreDirectory();
+  }, []);
+
+  useEffect(() => {
+    if (directoryHandle) {
+      set( 'directory-handle', directoryHandle );
+    }
+  }, [directoryHandle]);
+
+  const handleCreateNew = () => {
+    setFileHandle(null);
+    setFileName(null);
+    setMarkdown('');
+    setIsModified(false);
+  };
 
   const handleOpen = async () => {
     try {
@@ -183,6 +243,7 @@ function App() {
         hasFolder={!!directoryHandle}
         fontSize={fontSize}
         setFontSize={setFontSize}
+        onDoubleClick={handleCreateNew}
       />
       
       <main className="flex-1 flex overflow-hidden relative">
@@ -200,6 +261,7 @@ function App() {
                     onFileSelect={loadFile}
                     currentFile={fileHandle}
                     className="h-full"
+                    onCreateFile={handleCreateNew}
                 />
             </div>
             <div className="h-full overflow-hidden">

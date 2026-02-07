@@ -19,6 +19,7 @@ interface HeaderProps {
   hasFolder: boolean;
   fontSize: number;
   setFontSize: (size: number) => void;
+  onDoubleClick: () => void;
 }
 
 export function Header({
@@ -38,11 +39,20 @@ export function Header({
   hasFolder,
   fontSize,
   setFontSize,
+  onDoubleClick,
 }: HeaderProps) {
   const [showSettingsMenu, setShowSettingsMenu] = React.useState(false);
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--c-border)] bg-[var(--c-bg)] transition-colors duration-200">
+    <header 
+      className="flex items-center justify-between px-4 py-3 border-b border-[var(--c-border)] bg-[var(--c-bg)] transition-colors duration-200"
+      onDoubleClick={(e) => {
+        // Only trigger if clicking the header background or the title area, not buttons
+        if (e.target === e.currentTarget || (e.target as HTMLElement).closest('h1')) {
+             onDoubleClick();
+        }
+      }}
+    >
       <div className="flex items-center space-x-4">
         <h1 className="text-xl font-bold text-[var(--c-brand)] flex items-center">
             {hasFolder && (
