@@ -11,6 +11,7 @@ function App() {
   const [markdown, setMarkdown] = useState<string>('# Welcome to LocalMD Pro\n\nStart typing or open a folder...');
   const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [pendingDirectoryHandle, setPendingDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isModified, setIsModified] = useState(false);
   
@@ -49,15 +50,7 @@ function App() {
           if ((await handle.queryPermission(options)) === 'granted') {
              setDirectoryHandle(handle);
           } else {
-             // Request permission? 
-             // We can't request directly on load without user gesture usually.
-             // But we can keep it and maybe show a button "Restore Folder"?
-             // For now, let's just set it. If we try to access, it might prompt or fail.
-             // Actually, Chrome requires user gesture to verify permission.
-             // Let's set it, and Sidebar might fail to list if not permitted.
-             // Better strategy: Set it, but we might need to handle permission request in Sidebar or here.
-             // For "reopen", let's try to set it.
-             setDirectoryHandle(handle);
+             setPendingDirectoryHandle(handle);
           }
         }
       } catch (err) {
@@ -72,6 +65,20 @@ function App() {
       set( 'directory-handle', directoryHandle );
     }
   }, [directoryHandle]);
+
+  const handleRestoreSession = async () => {
+    if (!pendingDirectoryHandle) return;
+    try {
+      // @ts-ignore
+      const options = { mode: 'read' };
+      if ((await pendingDirectoryHandle.requestPermission(options)) === 'granted') {
+        setDirectoryHandle(pendingDirectoryHandle);
+        setPendingDirectoryHandle(null);
+      }
+    } catch (err) {
+      console.error('Failed to request permission', err);
+    }
+  };
 
   const handleCreateNew = () => {
     setFileHandle(null);
@@ -246,7 +253,21 @@ function App() {
         onDoubleClick={handleCreateNew}
       />
       
-      <main className="flex-1 flex overflow-hidden relative">
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {pendingDirectoryHandle && !directoryHandle && (
+           <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center justify-between text-sm text-yellow-800 flex-shrink-0">
+              <span className="flex items-center">
+                 <span className="font-medium mr-2">Previous session detected:</span> 
+                 {pendingDirectoryHandle.name}
+              </span>
+              <button 
+                 onClick={handleRestoreSession}
+                 className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded border border-yellow-300 transition-colors font-medium text-xs"
+              >
+                 Restore Session
+              </button>
+           </div>
+        )}
         {directoryHandle && sidebarOpen ? (
           <Split
             className="flex h-full w-full"

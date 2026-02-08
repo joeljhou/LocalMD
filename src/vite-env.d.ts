@@ -10,6 +10,8 @@ interface FileSystemHandle {
   kind: 'file' | 'directory';
   name: string;
   isSameEntry(other: FileSystemHandle): Promise<boolean>;
+  queryPermission(descriptor?: any): Promise<PermissionState>;
+  requestPermission(descriptor?: any): Promise<PermissionState>;
 }
 
 interface FileSystemFileHandle extends FileSystemHandle {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { File, Folder, FolderOpen, Eye, EyeOff, FileUp } from 'lucide-react';
+import { File, Folder, FolderOpen, Eye, EyeOff} from 'lucide-react';
 
 interface SidebarProps {
   directoryHandle: FileSystemDirectoryHandle | null;
@@ -90,21 +90,9 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
   );
 }
 
-export function Sidebar({ directoryHandle, onFileSelect, currentFile, className, onCreateFile }: SidebarProps) {
+export function Sidebar({ directoryHandle, onFileSelect, currentFile, className }: SidebarProps) {
   const [rootChildren, setRootChildren] = useState<FileSystemHandle[]>([]);
   const [showHidden, setShowHidden] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
-
-  useEffect(() => {
-    const handleClick = () => setContextMenu(prev => ({ ...prev, visible: false }));
-    window.addEventListener('click', handleClick);
-    return () => window.removeEventListener('click', handleClick);
-  }, []);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, visible: true });
-  };
 
   useEffect(() => {
     const loadRoot = async () => {
@@ -129,7 +117,6 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className,
     <>
       <div 
         className={`flex flex-col bg-[var(--c-bg-light)] h-full ${className || ''}`}
-        onContextMenu={handleContextMenu}
       >
         <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--c-border)] flex-shrink-0">
         <span className="text-xs font-bold text-[var(--c-text-light)] uppercase tracking-wider">Explorer</span>
@@ -158,23 +145,6 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className,
         ))}
       </div>
       </div>
-      {contextMenu.visible && (
-        <div 
-            className="fixed z-50 bg-[var(--c-bg)] border border-[var(--c-border)] shadow-lg rounded-lg py-1 min-w-[120px]"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-            <button 
-                className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--c-bg-light)] text-[var(--c-text)] flex items-center"
-                onClick={() => {
-                    onCreateFile();
-                    setContextMenu({ ...contextMenu, visible: false });
-                }}
-            >
-                <FileUp size={14} className="mr-2" />
-                New File
-            </button>
-        </div>
-      )}
     </>
   );
 }
