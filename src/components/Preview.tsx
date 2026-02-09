@@ -101,19 +101,19 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
             <div className="p-4 text-sm font-mono text-[var(--c-text)] space-y-3">
                {frontMatter.title && (
                    <div className="flex items-start">
-                       <span className="w-24 flex-shrink-0 text-[var(--c-text-light)]">title:</span>
+                       <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">title:</span>
                        <span className="font-bold">{frontMatter.title}</span>
                    </div>
                )}
                {frontMatter.shortTitle && (
                    <div className="flex items-start">
-                       <span className="w-24 flex-shrink-0 text-[var(--c-text-light)]">shortTitle:</span>
+                       <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">shortTitle:</span>
                        <span>{frontMatter.shortTitle}</span>
                    </div>
                )}
                {frontMatter.date && (
                    <div className="flex items-start">
-                       <span className="w-24 flex-shrink-0 text-[var(--c-text-light)]">date:</span>
+                       <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">date:</span>
                        <div className="flex items-center">
                            <Calendar size={12} className="mr-1.5 opacity-70" />
                            <span>{String(frontMatter.date)}</span>
@@ -122,7 +122,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
                )}
                {frontMatter.author && (
                    <div className="flex items-start">
-                       <span className="w-24 flex-shrink-0 text-[var(--c-text-light)]">author:</span>
+                       <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">author:</span>
                        <div className="flex items-center">
                            <User size={12} className="mr-1.5 opacity-70" />
                            <span>{frontMatter.author}</span>
@@ -131,7 +131,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
                )}
                {frontMatter.tags && (
                    <div className="flex items-start">
-                       <span className="w-24 flex-shrink-0 text-[var(--c-text-light)]">tags:</span>
+                       <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">tags:</span>
                        <div className="flex flex-wrap gap-1">
                            {(Array.isArray(frontMatter.tags) ? frontMatter.tags : [frontMatter.tags]).map((tag: any, i: number) => (
                                <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-[var(--c-brand-light)]/10 text-[var(--c-brand)] border border-[var(--c-brand-light)]/20">
@@ -144,10 +144,10 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
                )}
                {frontMatter.categories && (
                    <div className="flex items-start">
-                       <span className="w-24 flex-shrink-0 text-[var(--c-text-light)]">categories:</span>
+                       <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">categories:</span>
                        <div className="flex flex-wrap gap-1">
                            {(Array.isArray(frontMatter.categories) ? frontMatter.categories : [frontMatter.categories]).map((cat: any, i: number) => (
-                               <span key={i} className="px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-slate-800 text-[var(--c-text)] border border-[var(--c-border)]">
+                               <span key={i} className="px-2 py-0.5 rounded text-xs bg-[var(--c-bg-lighter)] text-[var(--c-text)] border border-[var(--c-border)]">
                                    {String(cat)}
                                </span>
                            ))}
@@ -160,7 +160,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
                   .filter(([key]) => !['title', 'shortTitle', 'date', 'author', 'tags', 'categories'].includes(key))
                   .map(([key, value]) => (
                     <div key={key} className="flex items-start">
-                        <span className="w-24 flex-shrink-0 text-[var(--c-text-light)]">{key}:</span>
+                        <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">{key}:</span>
                         <div className="whitespace-pre-wrap break-all text-[var(--c-text-light)]">
                             {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
                         </div>
