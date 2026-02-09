@@ -37,7 +37,6 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
 
   const extensions = [
     markdown({ base: markdownLanguage, codeLanguages: languages }),
-    EditorView.lineWrapping,
     EditorView.theme({
         "&": {
             backgroundColor: "transparent !important",
