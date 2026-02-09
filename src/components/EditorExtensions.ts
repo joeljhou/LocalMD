@@ -427,7 +427,7 @@ class TableWidget extends WidgetType {
     return other.rawTable === this.rawTable && other.startPos === this.startPos;
   }
 
-  ignoreEvent(event: Event): boolean {
+  ignoreEvent(_event: Event): boolean {
     return true; // Let the widget handle its own events (like clicks)
   }
 }
