@@ -1,51 +1,46 @@
 :root {
+  /* 默认主题 (绿色) - 对应 VuePress 风格 */
   /* Default Theme (VuePress inspired) */
-  --c-brand: #3eaf7c;
-  --c-brand-light: #4abf8a;
-  --c-text: #2c3e50;
-  --c-text-light: #3a5169;
-  --c-text-lighter: #4e6e8e;
-  --c-bg: #ffffff;
-  --c-bg-light: #f3f5f7;
-  --c-bg-lighter: #eeeeee;
-  --c-border: #eaecef;
-  --c-code-bg: #282c34;
-  --c-editor-block-bg: #f0fcee;
+  --c-brand: #3eaf7c;          /* 品牌主色 (绿色) */
+  --c-brand-light: #4abf8a;    /* 品牌亮色 */
+  --c-text: #2c3e50;           /* 主要文本颜色 */
+  --c-text-light: #3a5169;     /* 次要文本颜色 */
+  --c-text-lighter: #4e6e8e;   /* 更浅的文本颜色 */
+  --c-bg: #ffffff;             /* 背景色 */
+  --c-bg-light: #f3f5f7;       /* 浅色背景 */
+  --c-bg-lighter: #eeeeee;     /* 更浅的背景 */
+  --c-border: #eaecef;         /* 边框颜色 */
+  --c-code-bg: #282c34;        /* 代码块背景色 (深色) */
+  --c-editor-block-bg: #f6f8fa; /* 编辑器内 Front Matter/代码块背景色 (统一浅灰，参考 GitHub) */
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   --font-code: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
+/* 夜间模式 (Dark Mode) - 适用于所有主题 */
 html.dark {
   --c-brand: #3eaf7c;
   --c-brand-light: #4abf8a;
-  --c-text: #e2e8f0;
+  --c-text: #e2e8f0;           /* 夜间模式文本 (浅灰) */
   --c-text-light: #cbd5e1;
   --c-text-lighter: #94a3b8;
-  --c-bg: #1e293b;
+  --c-bg: #1e293b;             /* 夜间模式背景 (深蓝灰) */
   --c-bg-light: #0f172a;
   --c-bg-lighter: #334155;
   --c-border: #334155;
   --c-code-bg: #282c34;
-  --c-editor-block-bg: #334155; /* Lighter than bg (#1e293b) for visibility */
+  --c-editor-block-bg: #334155; /* 编辑器内块背景色 (统一深灰)，确保在深色背景下可见 */
 }
 
-/* Custom Theme Override Classes */
+/* --- 自定义主题覆盖 (Custom Theme Overrides) --- */
+
+/* 紫色主题 (Purple Theme) */
 html.theme-purple {
-  --c-brand: #8b5cf6;
+  --c-brand: #8b5cf6;          /* 紫色主色 */
   --c-brand-light: #a78bfa;
-  --c-editor-block-bg: #f5f3ff;
 }
 
-html.theme-purple.dark {
-  --c-editor-block-bg: #334155;
-}
-
+/* 蓝色主题 (Blue Theme) */
 html.theme-blue {
-  --c-brand: #3b82f6;
+  --c-brand: #3b82f6;          /* 蓝色主色 */
   --c-brand-light: #60a5fa;
-  --c-editor-block-bg: #eff6ff;
-}
-
-html.theme-blue.dark {
-  --c-editor-block-bg: #334155;
 }
