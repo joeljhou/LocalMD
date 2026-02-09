@@ -23,17 +23,24 @@ const CodeBlock = ({ language, value, theme }: { language: string, value: string
   };
 
   return (
-    <div className="rounded-lg overflow-hidden border border-[var(--c-border)] my-4 bg-[var(--c-bg)]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--c-bg-light)] border-b border-[var(--c-border)] select-none">
-        <span className="text-xs font-bold text-[var(--c-text-light)] uppercase tracking-wider">{language}</span>
-        <button 
-          onClick={handleCopy}
-          className="text-[var(--c-text-light)] hover:text-[var(--c-brand)] transition-colors p-1 rounded-md hover:bg-[var(--c-bg-lighter)]"
-          title="Copy code"
-        >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-        </button>
-      </div>
+    <div className="relative rounded-lg overflow-hidden border border-[var(--c-border)] my-4 bg-[var(--c-bg)] group">
+      <button 
+        onClick={handleCopy}
+        className="absolute top-2 right-2 z-10 text-xs font-bold text-[var(--c-text-light)] bg-[var(--c-bg)] border border-[var(--c-border)] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-all hover:text-[var(--c-brand)] hover:border-[var(--c-brand)] shadow-sm flex items-center gap-1.5"
+        title="Click to copy"
+      >
+        {copied ? (
+          <>
+            <Check size={12} />
+            <span>COPIED</span>
+          </>
+        ) : (
+          <>
+            <span>{language.toUpperCase()}</span>
+            <Copy size={12} />
+          </>
+        )}
+      </button>
       <SyntaxHighlighter
         style={theme === 'dark' ? oneDark : oneLight}
         language={language}
