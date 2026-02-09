@@ -4,7 +4,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
-import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorPlugin } from './EditorExtensions';
+import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorPlugin, blockquotePlugin } from './EditorExtensions';
 
 interface EditorProps {
   value: string;
@@ -42,6 +42,7 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
     linkHighlightPlugin,
     linkClickHandler,
     tableEditorPlugin,
+    blockquotePlugin,
     EditorView.theme({
         "&": {
             backgroundColor: "transparent !important",
@@ -91,6 +92,17 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             outline: "2px solid var(--c-brand)",
             borderRadius: "2px",
             padding: "2px 4px"
+        },
+        // Blockquote Styles
+        ".cm-blockquote-line": {
+            borderLeft: "4px solid var(--c-border)",
+            paddingLeft: "1em !important", // Override default padding
+            color: "var(--c-text-light)"
+        },
+        ".cm-blockquote-mark": {
+            color: "var(--c-text-lighter)",
+            opacity: "0.5",
+            marginRight: "0.5em"
         }
     })
   ];

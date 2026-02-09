@@ -418,3 +418,60 @@ export const tableEditorPlugin = StateField.define<DecorationSet>({
   },
   provide: (field) => EditorView.decorations.from(field)
 });
+
+// --- Blockquote Styling ---
+
+function getBlockquoteDecorations(view: EditorView): DecorationSet {
+  const decorations: Range<Decoration>[] = [];
+  const { state } = view;
+
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        if (node.name === 'Blockquote') {
+            // Add line decoration for the entire blockquote block
+            // We need to identify lines covered by this blockquote
+            const startLine = state.doc.lineAt(node.from);
+            const endLine = state.doc.lineAt(node.to);
+
+            for (let i = startLine.number; i <= endLine.number; i++) {
+                const line = state.doc.line(i);
+                decorations.push(Decoration.line({
+                    class: 'cm-blockquote-line'
+                }).range(line.from));
+            }
+        }
+        
+        if (node.name === 'QuoteMark') {
+            // Fade out the '>' character
+            decorations.push(Decoration.mark({
+                class: 'cm-blockquote-mark'
+            }).range(node.from, node.to));
+        }
+      }
+    });
+  }
+  
+  return Decoration.set(decorations.sort((a, b) => a.from - b.from));
+}
+
+export const blockquotePlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = getBlockquoteDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = getBlockquoteDecorations(update.view);
+      }
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  }
+);
