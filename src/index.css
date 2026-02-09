@@ -58,3 +58,17 @@
 .cm-code-block-bg {
   background-color: var(--c-editor-block-bg);
 }
+
+/* Ensure selection layer is above content layer so selection is visible over background colors */
+.cm-selectionLayer {
+  z-index: 1 !important;
+}
+
+/* Make selection background transparent to see text underneath */
+.cm-selectionBackground {
+  background-color: rgba(66, 165, 245, 0.3) !important;
+}
+
+html.dark .cm-selectionBackground {
+  background-color: rgba(66, 165, 245, 0.3) !important;
+}
