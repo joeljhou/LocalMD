@@ -72,3 +72,19 @@
 html.dark .cm-selectionBackground {
   background-color: rgba(66, 165, 245, 0.3) !important;
 }
+
+/* Markdown Link Styling */
+.cm-md-link-text {
+  color: #3b82f6 !important; /* Blue-500 */
+  text-decoration: none;
+}
+
+.cm-md-link-text:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cm-md-link-url-hidden {
+  color: var(--c-text-lighter);
+  opacity: 0.6;
+}

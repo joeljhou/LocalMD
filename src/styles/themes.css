@@ -26,7 +26,7 @@ html.dark {
   --c-bg-lighter: #334155;
   --c-border: #334155;
   --c-code-bg: #282c34;
-  --c-editor-block-bg: #2d3b3f;
+  --c-editor-block-bg: #334155; /* Lighter than bg (#1e293b) for visibility */
 }
 
 /* Custom Theme Override Classes */
@@ -37,7 +37,7 @@ html.theme-purple {
 }
 
 html.theme-purple.dark {
-  --c-editor-block-bg: #2e2a3b;
+  --c-editor-block-bg: #4c1d95; /* Dark purple but visible against bg */
 }
 
 html.theme-blue {
@@ -47,5 +47,5 @@ html.theme-blue {
 }
 
 html.theme-blue.dark {
-  --c-editor-block-bg: #1e293b;
+  --c-editor-block-bg: #1e3a8a; /* Dark blue but visible against bg */
 }
