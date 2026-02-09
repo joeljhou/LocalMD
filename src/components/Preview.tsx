@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import yaml from 'js-yaml';
-import { ChevronDown, ChevronRight, Calendar, User, Tag, Layout } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, User, Tag, Layout, Copy, Check } from 'lucide-react';
 
 interface PreviewProps {
   content: string;
@@ -12,6 +12,39 @@ interface PreviewProps {
   scrollRatio?: number;
   fontSize: number;
 }
+
+const CodeBlock = ({ language, value, theme }: { language: string, value: string, theme: 'light' | 'dark' }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="rounded-lg overflow-hidden border border-[var(--c-border)] my-4 bg-[var(--c-bg)]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--c-bg-light)] border-b border-[var(--c-border)] select-none">
+        <span className="text-xs font-bold text-[var(--c-text-light)] uppercase tracking-wider">{language}</span>
+        <button 
+          onClick={handleCopy}
+          className="text-[var(--c-text-light)] hover:text-[var(--c-brand)] transition-colors p-1 rounded-md hover:bg-[var(--c-bg-lighter)]"
+          title="Copy code"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        style={theme === 'dark' ? oneDark : oneLight}
+        language={language}
+        PreTag="div"
+        customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.9em' }}
+      >
+        {value}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
 
 export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -177,14 +210,11 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
           code({node, inline, className, children, ...props}: any) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
-              <SyntaxHighlighter
-                style={theme === 'dark' ? oneDark : oneLight}
-                language={match[1]}
-                PreTag="div"
-                {...props}
-              >
-                {String(children).replace(/\n$/, '')}
-              </SyntaxHighlighter>
+              <CodeBlock 
+                language={match[1]} 
+                value={String(children).replace(/\n$/, '')} 
+                theme={theme} 
+              />
             ) : (
               <code className={className} {...props}>
                 {children}
