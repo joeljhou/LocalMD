@@ -292,6 +292,53 @@ class TableWidget extends WidgetType {
     return data.map(row => `| ${row.join(' | ')} |`).join('\n');
   }
 
+  // Helper to render cell content with markdown links
+  private renderCellContent(cell: HTMLElement, text: string) {
+    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let lastIndex = 0;
+    let match;
+
+    // Reset content
+    cell.textContent = '';
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      // Add text before the link
+      if (match.index > lastIndex) {
+        cell.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+
+      const linkText = match[1];
+      const linkUrl = match[2];
+
+      const a = document.createElement('a');
+      a.textContent = linkText;
+      a.href = linkUrl;
+      a.target = '_blank';
+      a.className = 'cm-md-link-text'; // Reuse existing link style
+      
+      // Handle click interactions
+      a.addEventListener('click', (e) => {
+          // If Ctrl/Cmd + Click: Open URL
+          if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(linkUrl, '_blank');
+          } else {
+              // If simple click: Prevent navigation, let it bubble to cell to trigger edit mode
+              e.preventDefault();
+          }
+      });
+
+      cell.appendChild(a);
+      lastIndex = linkRegex.lastIndex;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      cell.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+  }
+
   toDOM(view: EditorView) {
     const table = document.createElement('table');
     table.className = 'cm-md-table-widget';
@@ -318,7 +365,9 @@ class TableWidget extends WidgetType {
             return;
         }
 
-        cell.textContent = cellData;
+        // Render content (text + links)
+        this.renderCellContent(cell, cellData);
+        
         cell.className = 'cm-md-table-cell';
         
         // Click to edit
@@ -348,8 +397,8 @@ class TableWidget extends WidgetType {
                      }
                  });
              } else {
-                 // Restore text if no change
-                 cell.textContent = cellData;
+                 // Restore text if no change (re-render links)
+                 this.renderCellContent(cell, cellData);
              }
           };
 
