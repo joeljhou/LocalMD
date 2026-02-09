@@ -205,10 +205,10 @@ function App() {
   useEffect(() => {
     if (!fileHandle) return;
 
-    const intervalId = setInterval(async () => {
+    const checkExternalChanges = async () => {
         try {
             const file = await fileHandle.getFile();
-            // If file modified on disk AND we haven't modified it in editor (or we want to overwrite?)
+            // If file modified on disk AND we haven't modified it in editor
             // Requirement: "User switch back... content sync latest".
             // Implementation: If file on disk is newer than our last read
             if (file.lastModified > lastModifiedRef.current) {
@@ -226,9 +226,15 @@ function App() {
         } catch (err) {
             console.error('Error watching file', err);
         }
-    }, 2000);
+    };
 
-    return () => clearInterval(intervalId);
+    const intervalId = setInterval(checkExternalChanges, 2000);
+    window.addEventListener('focus', checkExternalChanges);
+
+    return () => {
+        clearInterval(intervalId);
+        window.removeEventListener('focus', checkExternalChanges);
+    };
   }, [fileHandle, isModified]);
 
   return (
