@@ -1,6 +1,6 @@
 import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { type Range } from '@codemirror/state';
+import { type Range, StateField, EditorState } from '@codemirror/state';
 
 const codeBlockClass = 'cm-code-block-bg';
 
@@ -256,4 +256,165 @@ export const linkClickHandler = EditorView.domEventHandlers({
       }
     }
   }
+});
+
+// --- Table Editor Widget ---
+
+class TableWidget extends WidgetType {
+  private tableData: string[][];
+  private rawTable: string;
+  private startPos: number;
+
+  constructor(rawTable: string, startPos: number) {
+    super();
+    this.rawTable = rawTable;
+    this.startPos = startPos;
+    this.tableData = this.parseTable(rawTable);
+  }
+
+  // Parse markdown table to 2D array
+  private parseTable(raw: string): string[][] {
+    return raw.split('\n')
+      .filter(line => line.trim() !== '')
+      .map(line => {
+        // Split by pipe, handle escaped pipes if possible (simplified here)
+        let row = line.split('|').map(cell => cell.trim());
+        // Remove first and last empty strings if they exist (standard markdown table format)
+        if (row[0] === '') row.shift();
+        if (row[row.length - 1] === '') row.pop();
+        return row;
+      });
+  }
+
+  // Reconstruct markdown table from 2D array
+  private generateTable(data: string[][]): string {
+    // Simple generation without alignment padding for now
+    return data.map(row => `| ${row.join(' | ')} |`).join('\n');
+  }
+
+  toDOM(view: EditorView) {
+    const table = document.createElement('table');
+    table.className = 'cm-md-table-widget';
+    
+    this.tableData.forEach((rowData, rowIndex) => {
+      // Check if this is the separator row (usually just dashes)
+      const isSeparator = rowData.every(cell => /^[-:]+$/.test(cell));
+      
+      // Skip rendering separator row as data, but we might want to keep it in data structure
+      // Ideally we should style the table to look like it has a header
+      
+      const tr = document.createElement('tr');
+      
+      rowData.forEach((cellData, colIndex) => {
+        const cell = rowIndex === 0 ? document.createElement('th') : document.createElement('td');
+        
+        // Handle separator row visualization (maybe just skip it in UI but keep in data?)
+        // For editing, we need to preserve it.
+        // Let's render it as a non-editable row or just hide it?
+        // Hiding it is better for "WYSIWYG" feel.
+        if (isSeparator) {
+            tr.style.display = 'none'; 
+            // We still create cells to maintain structure if we were showing it
+            return;
+        }
+
+        cell.textContent = cellData;
+        cell.className = 'cm-md-table-cell';
+        
+        // Click to edit
+        cell.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation(); // Prevent editor from grabbing focus
+          
+          const input = document.createElement('input');
+          input.value = cellData;
+          input.className = 'cm-md-table-cell-input';
+          
+          const save = () => {
+             const newValue = input.value;
+             if (newValue !== cellData) {
+                 // Update data
+                 this.tableData[rowIndex][colIndex] = newValue;
+                 // Reconstruct entire table string
+                 const newTableString = this.generateTable(this.tableData);
+                 
+                 // Dispatch change to editor
+                 // We need to calculate the length of the replaced content
+                 view.dispatch({
+                     changes: {
+                         from: this.startPos,
+                         to: this.startPos + this.rawTable.length,
+                         insert: newTableString
+                     }
+                 });
+             } else {
+                 // Restore text if no change
+                 cell.textContent = cellData;
+             }
+          };
+
+          input.addEventListener('blur', save);
+          input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                  input.blur();
+              }
+          });
+
+          cell.textContent = '';
+          cell.appendChild(input);
+          input.focus();
+        });
+
+        tr.appendChild(cell);
+      });
+      
+      table.appendChild(tr);
+    });
+
+    return table;
+  }
+
+  eq(other: TableWidget) {
+    return other.rawTable === this.rawTable && other.startPos === this.startPos;
+  }
+
+  ignoreEvent(event: Event): boolean {
+    return true; // Let the widget handle its own events (like clicks)
+  }
+}
+
+function getTableDecorations(state: EditorState): DecorationSet {
+  const decorations: Range<Decoration>[] = [];
+  const selection = state.selection.main;
+
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name === 'Table') {
+        // Check if cursor is inside the table
+        const isCursorInside = selection.head >= node.from && selection.head <= node.to;
+
+        if (!isCursorInside) {
+           const tableText = state.sliceDoc(node.from, node.to);
+           decorations.push(Decoration.replace({
+             widget: new TableWidget(tableText, node.from)
+           }).range(node.from, node.to));
+        }
+      }
+    }
+  });
+
+  return Decoration.set(decorations.sort((a, b) => a.from - b.from));
+}
+
+export const tableEditorPlugin = StateField.define<DecorationSet>({
+  create(state) {
+    return getTableDecorations(state);
+  },
+  update(decorations, transaction) {
+    if (transaction.docChanged || transaction.selection) {
+      return getTableDecorations(transaction.state);
+    }
+    return decorations;
+  },
+  provide: (field) => EditorView.decorations.from(field)
 });

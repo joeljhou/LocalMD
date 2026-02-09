@@ -4,7 +4,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
-import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler } from './EditorExtensions';
+import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorPlugin } from './EditorExtensions';
 
 interface EditorProps {
   value: string;
@@ -41,6 +41,7 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
     codeBlockHighlight,
     linkHighlightPlugin,
     linkClickHandler,
+    tableEditorPlugin,
     EditorView.theme({
         "&": {
             backgroundColor: "transparent !important",
@@ -58,6 +59,38 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             backgroundColor: "transparent !important",
             borderRight: "none !important",
             color: "var(--c-text-lighter)"
+        },
+        // Table Widget Styles
+        ".cm-md-table-widget": {
+            borderCollapse: "collapse",
+            margin: "1em 0",
+            fontSize: "0.9em",
+            userSelect: "none"
+        },
+        ".cm-md-table-cell": {
+            border: "1px solid var(--c-border)",
+            padding: "6px 12px",
+            minWidth: "50px",
+            cursor: "text",
+            transition: "background-color 0.2s"
+        },
+        ".cm-md-table-cell:hover": {
+            backgroundColor: "var(--c-bg-light)"
+        },
+        ".cm-md-table-cell th": {
+            fontWeight: "bold",
+            backgroundColor: "var(--c-bg-light)"
+        },
+        ".cm-md-table-cell-input": {
+            width: "100%",
+            border: "none",
+            background: "var(--c-bg)",
+            color: "var(--c-text)",
+            fontFamily: "inherit",
+            fontSize: "inherit",
+            outline: "2px solid var(--c-brand)",
+            borderRadius: "2px",
+            padding: "2px 4px"
         }
     })
   ];
