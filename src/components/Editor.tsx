@@ -4,6 +4,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
+import { codeBlockHighlight } from './EditorExtensions';
 
 interface EditorProps {
   value: string;
@@ -37,6 +38,7 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
 
   const extensions = [
     markdown({ base: markdownLanguage, codeLanguages: languages }),
+    codeBlockHighlight,
     EditorView.theme({
         "&": {
             backgroundColor: "transparent !important",

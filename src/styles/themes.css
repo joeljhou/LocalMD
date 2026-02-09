@@ -10,6 +10,7 @@
   --c-bg-lighter: #eeeeee;
   --c-border: #eaecef;
   --c-code-bg: #282c34;
+  --c-editor-block-bg: #f0fcee;
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   --font-code: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
@@ -25,6 +26,7 @@ html.dark {
   --c-bg-lighter: #334155;
   --c-border: #334155;
   --c-code-bg: #282c34;
+  --c-editor-block-bg: #2d3b3f;
 }
 
 /* Custom Theme Override Classes */

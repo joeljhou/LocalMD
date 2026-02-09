@@ -53,3 +53,8 @@
   cursor: col-resize;
   width: 2px !important; /* Force width */
 }
+
+/* Code Block and Front Matter Background in Editor */
+.cm-code-block-bg {
+  background-color: var(--c-editor-block-bg);
+}
