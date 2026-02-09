@@ -136,60 +136,65 @@ export function Header({
 
         <div className="h-6 w-px bg-[var(--c-border)] mx-2" />
 
-        <div className="relative">
+        <div 
+          className="relative"
+          onMouseEnter={() => setShowSettingsMenu(true)}
+          onMouseLeave={() => setShowSettingsMenu(false)}
+        >
           <button
-            onClick={() => setShowSettingsMenu(!showSettingsMenu)}
             className="p-2 rounded-lg hover:bg-[var(--c-bg-light)] text-[var(--c-text-light)] transition-colors"
             title="Appearance Settings"
           >
             <Palette size={20} />
           </button>
           {showSettingsMenu && (
-            <div className="absolute right-0 top-full mt-2 w-auto min-w-[120px] bg-[var(--c-bg)] border border-[var(--c-border)] rounded-xl shadow-xl p-2 z-50 flex flex-col gap-2">
-              <div className="flex items-center justify-center space-x-2">
-                <button 
-                    onClick={() => changeAccent('default')} 
-                    className={`w-6 h-6 rounded-full bg-[#3eaf7c] flex items-center justify-center transition-all ${accent === 'default' ? 'ring-2 ring-offset-2 ring-[#3eaf7c] ring-offset-[var(--c-bg)] scale-110' : 'hover:scale-110'}`} 
-                    title="Green"
-                >
-                    {accent === 'default' && <Check size={12} className="text-white" strokeWidth={3} />}
-                </button>
-                <button 
-                    onClick={() => changeAccent('purple')} 
-                    className={`w-6 h-6 rounded-full bg-[#8b5cf6] flex items-center justify-center transition-all ${accent === 'purple' ? 'ring-2 ring-offset-2 ring-[#8b5cf6] ring-offset-[var(--c-bg)] scale-110' : 'hover:scale-110'}`} 
-                    title="Purple"
-                >
-                    {accent === 'purple' && <Check size={12} className="text-white" strokeWidth={3} />}
-                </button>
-                <button 
-                    onClick={() => changeAccent('blue')} 
-                    className={`w-6 h-6 rounded-full bg-[#3b82f6] flex items-center justify-center transition-all ${accent === 'blue' ? 'ring-2 ring-offset-2 ring-[#3b82f6] ring-offset-[var(--c-bg)] scale-110' : 'hover:scale-110'}`} 
-                    title="Blue"
-                >
-                    {accent === 'blue' && <Check size={12} className="text-white" strokeWidth={3} />}
-                </button>
-              </div>
-              
-              <div className="h-px bg-[var(--c-border)] opacity-50" />
-              
-              <div className="flex items-center justify-between bg-[var(--c-bg-light)] rounded-lg p-1 border border-[var(--c-border)]">
-                 <button 
-                    onClick={() => setFontSize(Math.max(12, fontSize - 1))}
-                    className="p-1 rounded-md hover:bg-[var(--c-bg)] hover:shadow-sm text-[var(--c-text)] transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none"
-                    disabled={fontSize <= 12}
-                    title="Decrease font size"
-                 >
-                    <Minus size={14} />
-                 </button>
-                 <span className="text-xs font-bold text-[var(--c-text)] w-12 text-center tabular-nums">{fontSize}px</span>
-                 <button 
-                    onClick={() => setFontSize(Math.min(24, fontSize + 1))}
-                    className="p-1 rounded-md hover:bg-[var(--c-bg)] hover:shadow-sm text-[var(--c-text)] transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none"
-                    disabled={fontSize >= 24}
-                    title="Increase font size"
-                 >
-                    <Plus size={14} />
-                 </button>
+            <div className="absolute right-0 top-full pt-2 w-auto min-w-[120px] z-50">
+              <div className="bg-[var(--c-bg)] border border-[var(--c-border)] rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] p-2 flex flex-col gap-2">
+                <div className="flex items-center justify-center space-x-2">
+                  <button 
+                      onClick={() => changeAccent('default')} 
+                      className={`w-6 h-6 rounded-full bg-[#3eaf7c] flex items-center justify-center transition-all ${accent === 'default' ? 'ring-2 ring-offset-2 ring-[#3eaf7c] ring-offset-[var(--c-bg)] scale-110' : 'hover:scale-110'}`} 
+                      title="Green"
+                  >
+                      {accent === 'default' && <Check size={12} className="text-white" strokeWidth={3} />}
+                  </button>
+                  <button 
+                      onClick={() => changeAccent('purple')} 
+                      className={`w-6 h-6 rounded-full bg-[#8b5cf6] flex items-center justify-center transition-all ${accent === 'purple' ? 'ring-2 ring-offset-2 ring-[#8b5cf6] ring-offset-[var(--c-bg)] scale-110' : 'hover:scale-110'}`} 
+                      title="Purple"
+                  >
+                      {accent === 'purple' && <Check size={12} className="text-white" strokeWidth={3} />}
+                  </button>
+                  <button 
+                      onClick={() => changeAccent('blue')} 
+                      className={`w-6 h-6 rounded-full bg-[#3b82f6] flex items-center justify-center transition-all ${accent === 'blue' ? 'ring-2 ring-offset-2 ring-[#3b82f6] ring-offset-[var(--c-bg)] scale-110' : 'hover:scale-110'}`} 
+                      title="Blue"
+                  >
+                      {accent === 'blue' && <Check size={12} className="text-white" strokeWidth={3} />}
+                  </button>
+                </div>
+                
+                <div className="h-px bg-[var(--c-border)] opacity-50" />
+                
+                <div className="flex items-center justify-between bg-[var(--c-bg-light)] rounded-lg p-1 border border-[var(--c-border)]">
+                   <button 
+                      onClick={() => setFontSize(Math.max(12, fontSize - 1))}
+                      className="p-1 rounded-md hover:bg-[var(--c-bg)] hover:shadow-sm text-[var(--c-text)] transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none"
+                      disabled={fontSize <= 12}
+                      title="Decrease font size"
+                   >
+                      <Minus size={14} />
+                   </button>
+                   <span className="text-xs font-bold text-[var(--c-text)] w-12 text-center tabular-nums">{fontSize}px</span>
+                   <button 
+                      onClick={() => setFontSize(Math.min(24, fontSize + 1))}
+                      className="p-1 rounded-md hover:bg-[var(--c-bg)] hover:shadow-sm text-[var(--c-text)] transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none"
+                      disabled={fontSize >= 24}
+                      title="Increase font size"
+                   >
+                      <Plus size={14} />
+                   </button>
+                </div>
               </div>
             </div>
           )}
