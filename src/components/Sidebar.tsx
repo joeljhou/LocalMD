@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { File, Folder, FolderOpen, Eye, EyeOff, Locate, ChevronsDown, ChevronsUp } from 'lucide-react';
 
 interface SidebarProps {
@@ -71,11 +71,11 @@ interface FileTreeItemProps {
   expandSignal?: ExpandSignal | null;
   parentPath?: string;
   currentFilePath?: string | null;
-  onToggleExpand?: (path: string, isExpanded: boolean) => void;
-  initialExpandedPaths?: Set<string>;
+  onToggleExpand: (path: string, isExpanded: boolean) => void;
+  isInitiallyExpanded: (path: string) => boolean;
 }
 
-function FileTreeItem({ 
+const FileTreeItem = memo(function FileTreeItem({ 
   handle, 
   onFileSelect, 
   currentFile, 
@@ -86,13 +86,11 @@ function FileTreeItem({
   parentPath = '',
   currentFilePath,
   onToggleExpand,
-  initialExpandedPaths
+  isInitiallyExpanded
 }: FileTreeItemProps) {
   const itemPath = parentPath ? `${parentPath}/${handle.name}` : handle.name;
   
-  const [isOpen, setIsOpen] = useState(() => {
-    return initialExpandedPaths?.has(itemPath) ?? false;
-  });
+  const [isOpen, setIsOpen] = useState(() => isInitiallyExpanded(itemPath));
   
   const [children, setChildren] = useState<FileSystemHandle[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -109,7 +107,7 @@ function FileTreeItem({
     if (expandSignal && handle.kind === 'directory') {
       const newOpen = expandSignal.type === 'expand';
       setIsOpen(newOpen);
-      onToggleExpand?.(itemPath, newOpen);
+      onToggleExpand(itemPath, newOpen);
     }
   }, [expandSignal, handle.kind, itemPath, onToggleExpand]);
 
@@ -119,11 +117,11 @@ function FileTreeItem({
       if (expandedPath[level] === handle.name) {
          if (!isOpen) {
              setIsOpen(true);
-             onToggleExpand?.(itemPath, true);
+             onToggleExpand(itemPath, true);
          }
       }
     }
-  }, [expandedPath, level, handle.name, itemPath, onToggleExpand]);
+  }, [expandedPath, level, handle.name, itemPath, onToggleExpand, isOpen]);
 
   // Scroll into view if selected and we just expanded/loaded
   useEffect(() => {
@@ -158,7 +156,7 @@ function FileTreeItem({
     if (handle.kind === 'directory') {
       const newOpen = !isOpen;
       setIsOpen(newOpen);
-      onToggleExpand?.(itemPath, newOpen);
+      onToggleExpand(itemPath, newOpen);
     } else {
       onFileSelect(handle as FileSystemFileHandle);
     }
@@ -200,14 +198,14 @@ function FileTreeItem({
               parentPath={itemPath}
               currentFilePath={currentFilePath}
               onToggleExpand={onToggleExpand}
-              initialExpandedPaths={initialExpandedPaths}
+              isInitiallyExpanded={isInitiallyExpanded}
             />
           ))}
         </div>
       )}
     </div>
   );
-}
+});
 
 export function Sidebar({ directoryHandle, onFileSelect, currentFile, className }: SidebarProps) {
   const [rootChildren, setRootChildren] = useState<FileSystemHandle[]>([]);
@@ -219,34 +217,39 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
   // State for file selection matching
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   
-  // State for persistence
-  const [initialExpandedPaths, setInitialExpandedPaths] = useState<Set<string>>(new Set());
-
-  // Load expanded paths from localStorage on mount
-  useEffect(() => {
+  // Persistence using ref to avoid re-renders
+  const expandedPathsRef = useRef<Set<string>>(new Set());
+  
+  // Load expanded paths from localStorage once
+  useState(() => {
       try {
           const saved = localStorage.getItem('localmd-expanded-paths');
           if (saved) {
-              setInitialExpandedPaths(new Set(JSON.parse(saved)));
+              expandedPathsRef.current = new Set(JSON.parse(saved));
           }
       } catch (e) {
           console.error("Failed to load expanded paths", e);
       }
+  });
+
+  // Stable callbacks for children
+  const updateExpandedPaths = useCallback((path: string, isExpanded: boolean) => {
+      const prev = expandedPathsRef.current;
+      const hasPath = prev.has(path);
+      
+      if (isExpanded === hasPath) return; // No change needed
+
+      if (isExpanded) {
+          prev.add(path);
+      } else {
+          prev.delete(path);
+      }
+      localStorage.setItem('localmd-expanded-paths', JSON.stringify(Array.from(prev)));
   }, []);
 
-  // Update persistence helper
-  const updateExpandedPaths = (path: string, isExpanded: boolean) => {
-      setInitialExpandedPaths(prev => {
-          const next = new Set(prev);
-          if (isExpanded) {
-              next.add(path);
-          } else {
-              next.delete(path);
-          }
-          localStorage.setItem('localmd-expanded-paths', JSON.stringify(Array.from(next)));
-          return next;
-      });
-  };
+  const isInitiallyExpanded = useCallback((path: string) => {
+      return expandedPathsRef.current.has(path);
+  }, []);
 
   // Resolve current file path whenever currentFile or directoryHandle changes
   useEffect(() => {
@@ -293,6 +296,24 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
           // Resolve returns array of directory names leading to file, e.g. ["sub", "nested", "file.md"]
           const path = await directoryHandle.resolve(currentFile);
           if (path) {
+              // Pre-update persistence ref to avoid unnecessary updates from children
+              let currentPath = '';
+              let changed = false;
+              
+              // Iterate all but last (file itself)
+              for (let i = 0; i < path.length - 1; i++) {
+                  const segment = path[i];
+                  currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+                  if (!expandedPathsRef.current.has(currentPath)) {
+                      expandedPathsRef.current.add(currentPath);
+                      changed = true;
+                  }
+              }
+              
+              if (changed) {
+                  localStorage.setItem('localmd-expanded-paths', JSON.stringify(Array.from(expandedPathsRef.current)));
+              }
+
               setExpandedPath(path);
               // Reset after a delay so user can close folders if they want
               setTimeout(() => setExpandedPath([]), 2000);
@@ -359,7 +380,7 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
             expandSignal={expandSignal}
             currentFilePath={currentFilePath}
             onToggleExpand={updateExpandedPaths}
-            initialExpandedPaths={initialExpandedPaths}
+            isInitiallyExpanded={isInitiallyExpanded}
           />
         ))}
       </div>
