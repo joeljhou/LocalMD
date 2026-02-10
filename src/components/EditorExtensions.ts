@@ -1,8 +1,25 @@
 import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate, WidgetType, hoverTooltip } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { type Range, StateField, EditorState } from '@codemirror/state';
+import { type Range } from '@codemirror/state';
 
 const codeBlockClass = 'cm-code-block-bg';
+
+// --- Helper: Deduplicate Decorations ---
+function deduplicateDecorations(decorations: Range<Decoration>[]): Range<Decoration>[] {
+  decorations.sort((a, b) => a.from - b.from || a.to - b.to);
+  const uniqueDecorations: Range<Decoration>[] = [];
+  let lastFrom = -1;
+  let lastTo = -1;
+  
+  for (const deco of decorations) {
+    if (deco.from !== lastFrom || deco.to !== lastTo) {
+      uniqueDecorations.push(deco);
+      lastFrom = deco.from;
+      lastTo = deco.to;
+    }
+  }
+  return uniqueDecorations;
+}
 
 // --- Code Block Highlighting ---
 
@@ -70,18 +87,7 @@ function getDecorations(view: EditorView): DecorationSet {
     }
   }
 
-  decorations.sort((a, b) => a.from - b.from);
-
-  const uniqueDecorations: Range<Decoration>[] = [];
-  let lastFrom = -1;
-  for (const deco of decorations) {
-    if (deco.from !== lastFrom) {
-      uniqueDecorations.push(deco);
-      lastFrom = deco.from;
-    }
-  }
-
-  return Decoration.set(uniqueDecorations);
+  return Decoration.set(deduplicateDecorations(decorations));
 }
 
 export const codeBlockHighlight = ViewPlugin.fromClass(
@@ -202,7 +208,7 @@ function getLinkDecorations(view: EditorView): DecorationSet {
     });
   }
   
-  return Decoration.set(decorations.sort((a, b) => a.from - b.from));
+  return Decoration.set(deduplicateDecorations(decorations));
 }
 
 export const linkHighlightPlugin = ViewPlugin.fromClass(
@@ -432,41 +438,48 @@ class TableWidget extends WidgetType {
   }
 }
 
-function getTableDecorations(state: EditorState): DecorationSet {
+function getTableDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
+  const { state } = view;
   const selection = state.selection.main;
 
-  syntaxTree(state).iterate({
-    enter: (node) => {
-      if (node.name === 'Table') {
-        // Check if cursor is inside the table
-        const isCursorInside = selection.head >= node.from && selection.head <= node.to;
+  // Use visibleRanges to avoid scanning entire doc (performance fix)
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(state).iterate({
+        from, to,
+        enter: (node) => {
+            if (node.name === 'Table') {
+                // Check if cursor is inside the table
+                const isCursorInside = selection.head >= node.from && selection.head <= node.to;
 
-        if (!isCursorInside) {
-           const tableText = state.sliceDoc(node.from, node.to);
-           decorations.push(Decoration.replace({
-             widget: new TableWidget(tableText, node.from)
-           }).range(node.from, node.to));
+                if (!isCursorInside) {
+                const tableText = state.sliceDoc(node.from, node.to);
+                decorations.push(Decoration.replace({
+                    widget: new TableWidget(tableText, node.from)
+                }).range(node.from, node.to));
+                }
+            }
         }
-      }
-    }
-  });
+    });
+  }
 
-  return Decoration.set(decorations.sort((a, b) => a.from - b.from));
+  return Decoration.set(deduplicateDecorations(decorations));
 }
 
-export const tableEditorPlugin = StateField.define<DecorationSet>({
-  create(state) {
-    return getTableDecorations(state);
-  },
-  update(decorations, transaction) {
-    if (transaction.docChanged || transaction.selection) {
-      return getTableDecorations(transaction.state);
-    }
-    return decorations;
-  },
-  provide: (field) => EditorView.decorations.from(field)
-});
+export const tableEditorPlugin = ViewPlugin.fromClass(
+    class {
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
+            this.decorations = getTableDecorations(view);
+        }
+        update(update: ViewUpdate) {
+            if (update.docChanged || update.selectionSet || update.viewportChanged) {
+                this.decorations = getTableDecorations(update.view);
+            }
+        }
+    },
+    { decorations: v => v.decorations }
+);
 
 // --- Blockquote Styling ---
 
@@ -503,7 +516,7 @@ function getBlockquoteDecorations(view: EditorView): DecorationSet {
     });
   }
   
-  return Decoration.set(decorations.sort((a, b) => a.from - b.from));
+  return Decoration.set(deduplicateDecorations(decorations));
 }
 
 export const blockquotePlugin = ViewPlugin.fromClass(
@@ -570,7 +583,7 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
     });
   }
 
-  return Decoration.set(decorations.sort((a, b) => a.from - b.from));
+  return Decoration.set(deduplicateDecorations(decorations));
 }
 
 export const headerPlugin = ViewPlugin.fromClass(
@@ -591,3 +604,99 @@ export const headerPlugin = ViewPlugin.fromClass(
     decorations: (v) => v.decorations,
   }
 );
+
+// --- Image Preview Plugin ---
+
+class ModifierKeyPluginValue {
+    isCtrlPressed = false;
+    private _handlers: { [key: string]: EventListener } = {};
+    private _doc: Document | null = null;
+
+    constructor(view: EditorView) {
+      this._doc = view.contentDOM.ownerDocument;
+      
+      this._handlers = {
+          keydown: (e: Event) => {
+              const ke = e as KeyboardEvent;
+              this.isCtrlPressed = ke.ctrlKey || ke.metaKey;
+          },
+          keyup: (e: Event) => {
+              const ke = e as KeyboardEvent;
+              this.isCtrlPressed = ke.ctrlKey || ke.metaKey;
+          },
+          mousemove: (e: Event) => {
+              const me = e as MouseEvent;
+              this.isCtrlPressed = me.ctrlKey || me.metaKey;
+          }
+      };
+
+      if (this._doc) {
+          this._doc.addEventListener('keydown', this._handlers.keydown);
+          this._doc.addEventListener('keyup', this._handlers.keyup);
+      }
+      view.contentDOM.addEventListener('mousemove', this._handlers.mousemove);
+    }
+
+    destroy() {
+      if (this._doc) {
+          this._doc.removeEventListener('keydown', this._handlers.keydown);
+          this._doc.removeEventListener('keyup', this._handlers.keyup);
+      }
+      // Note: contentDOM listeners are cleaned up with the element
+    }
+}
+
+export const modifierKeyPlugin = ViewPlugin.fromClass(ModifierKeyPluginValue);
+
+export const imagePreviewTooltip = hoverTooltip((view, pos, _side) => {
+    // Check if Ctrl/Cmd is pressed using the plugin
+    const plugin = view.plugin(modifierKeyPlugin);
+    if (!plugin?.isCtrlPressed) return null;
+
+    const { state } = view;
+    let node = syntaxTree(state).resolveInner(pos, -1);
+    
+    // Traverse up to find Image
+    while (node && node.name !== 'Image' && node.parent) {
+        node = node.parent;
+    }
+    
+    if (node && node.name === 'Image') {
+        // Find URL
+        const urlNode = node.getChild('URL');
+        let url = "";
+        
+        if (urlNode) {
+             url = state.sliceDoc(urlNode.from, urlNode.to);
+        }
+        
+        if (url) {
+            return {
+                pos: node.from,
+                end: node.to,
+                above: true,
+                create(_view) {
+                    const dom = document.createElement("div");
+                    dom.className = "cm-image-preview";
+                    const img = document.createElement("img");
+                    img.src = url;
+                    img.style.maxWidth = "300px";
+                    img.style.maxHeight = "300px";
+                    img.style.display = "block";
+                    img.style.borderRadius = "4px";
+                    img.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+                    img.style.backgroundColor = "var(--c-bg)";
+                    dom.appendChild(img);
+                    return { dom };
+                }
+            };
+        }
+    }
+    
+    return null;
+});
+
+export const imagePreviewPlugin = [
+    modifierKeyPlugin,
+    imagePreviewTooltip
+];
