@@ -1,6 +1,6 @@
 import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate, WidgetType, hoverTooltip } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { type Range } from '@codemirror/state';
+import { type Range, StateField, EditorState } from '@codemirror/state';
 
 const codeBlockClass = 'cm-code-block-bg';
 
@@ -438,48 +438,41 @@ class TableWidget extends WidgetType {
   }
 }
 
-function getTableDecorations(view: EditorView): DecorationSet {
+function getTableDecorations(state: EditorState): DecorationSet {
   const decorations: Range<Decoration>[] = [];
-  const { state } = view;
   const selection = state.selection.main;
 
-  // Use visibleRanges to avoid scanning entire doc (performance fix)
-  for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
-        from, to,
-        enter: (node) => {
-            if (node.name === 'Table') {
-                // Check if cursor is inside the table
-                const isCursorInside = selection.head >= node.from && selection.head <= node.to;
+  syntaxTree(state).iterate({
+      enter: (node) => {
+          if (node.name === 'Table') {
+              // Check if cursor is inside the table
+              const isCursorInside = selection.head >= node.from && selection.head <= node.to;
 
-                if (!isCursorInside) {
+              if (!isCursorInside) {
                 const tableText = state.sliceDoc(node.from, node.to);
                 decorations.push(Decoration.replace({
                     widget: new TableWidget(tableText, node.from)
                 }).range(node.from, node.to));
-                }
-            }
-        }
-    });
-  }
+              }
+          }
+      }
+  });
 
   return Decoration.set(deduplicateDecorations(decorations));
 }
 
-export const tableEditorPlugin = ViewPlugin.fromClass(
-    class {
-        decorations: DecorationSet;
-        constructor(view: EditorView) {
-            this.decorations = getTableDecorations(view);
-        }
-        update(update: ViewUpdate) {
-            if (update.docChanged || update.selectionSet || update.viewportChanged) {
-                this.decorations = getTableDecorations(update.view);
-            }
-        }
+export const tableEditorPlugin = StateField.define<DecorationSet>({
+    create(state) {
+        return getTableDecorations(state);
     },
-    { decorations: v => v.decorations }
-);
+    update(decorations, transaction) {
+        if (transaction.docChanged || transaction.selection) {
+            return getTableDecorations(transaction.state);
+        }
+        return decorations;
+    },
+    provide: f => EditorView.decorations.from(f)
+});
 
 // --- Blockquote Styling ---
 
