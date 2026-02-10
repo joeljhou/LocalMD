@@ -125,12 +125,12 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
       `}
     >
       {hasFrontMatter && (
-        <div className="mb-8 rounded-lg border border-[var(--c-border)] bg-[var(--c-bg-light)] overflow-hidden text-sm">
+        <div className="mb-8 rounded-lg border border-[var(--c-border)] bg-[var(--c-bg-light)] overflow-hidden text-[0.9em]">
           <div 
             className="flex items-center justify-between px-4 py-2 bg-[var(--c-bg-lighter)] cursor-pointer select-none border-b border-[var(--c-border)]"
             onClick={() => setShowFrontMatter(!showFrontMatter)}
           >
-             <div className="flex items-center text-xs font-bold text-[var(--c-text-light)] uppercase tracking-wider">
+             <div className="flex items-center text-[0.85em] font-bold text-[var(--c-text-light)] uppercase tracking-wider">
                 <Layout size={14} className="mr-2" />
                 Front Matter
              </div>
@@ -138,7 +138,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
           </div>
           
           {showFrontMatter && (
-            <div className="p-4 text-sm font-mono text-[var(--c-text)] space-y-3">
+            <div className="p-4 text-[1em] font-mono text-[var(--c-text)] space-y-3">
                {frontMatter.title && (
                    <div className="flex items-start">
                        <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">title:</span>
@@ -174,7 +174,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
                        <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">tags:</span>
                        <div className="flex flex-wrap gap-1">
                            {(Array.isArray(frontMatter.tags) ? frontMatter.tags : [frontMatter.tags]).map((tag: any, i: number) => (
-                               <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-[var(--c-brand-light)]/10 text-[var(--c-brand)] border border-[var(--c-brand-light)]/20">
+                               <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-[0.85em] bg-[var(--c-brand-light)]/10 text-[var(--c-brand)] border border-[var(--c-brand-light)]/20">
                                    <Tag size={10} className="mr-1" />
                                    {String(tag)}
                                </span>
@@ -187,7 +187,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
                        <span className="w-32 flex-shrink-0 text-[var(--c-text-light)] select-none">categories:</span>
                        <div className="flex flex-wrap gap-1">
                            {(Array.isArray(frontMatter.categories) ? frontMatter.categories : [frontMatter.categories]).map((cat: any, i: number) => (
-                               <span key={i} className="px-2 py-0.5 rounded text-xs bg-[var(--c-bg-lighter)] text-[var(--c-text)] border border-[var(--c-border)]">
+                               <span key={i} className="px-2 py-0.5 rounded text-[0.85em] bg-[var(--c-bg-lighter)] text-[var(--c-text)] border border-[var(--c-border)]">
                                    {String(cat)}
                                </span>
                            ))}
