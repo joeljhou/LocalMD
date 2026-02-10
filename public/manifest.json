@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LocalMD Pro",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Professional Local Markdown Editor with WYSIWYG & Folder Support",
   "action": {
     "default_title": "Open LocalMD",
