@@ -4,7 +4,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
-import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorPlugin, blockquotePlugin } from './EditorExtensions';
+import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorPlugin, blockquotePlugin, headerPlugin } from './EditorExtensions';
 
 interface EditorProps {
   value: string;
@@ -43,6 +43,7 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
     linkClickHandler,
     tableEditorPlugin,
     blockquotePlugin,
+    headerPlugin,
     EditorView.theme({
         "&": {
             backgroundColor: "transparent !important",
@@ -103,7 +104,14 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             color: "var(--c-text-lighter)",
             opacity: "0.5",
             marginRight: "0.5em"
-        }
+        },
+        // Header Styles
+        ".cm-header-1": { fontSize: "2.0em", fontWeight: "bold", color: "var(--c-text)" },
+        ".cm-header-2": { fontSize: "1.75em", fontWeight: "bold", color: "var(--c-text)" },
+        ".cm-header-3": { fontSize: "1.5em", fontWeight: "bold", color: "var(--c-text)" },
+        ".cm-header-4": { fontSize: "1.25em", fontWeight: "bold", color: "var(--c-text)" },
+        ".cm-header-5": { fontSize: "1.1em", fontWeight: "bold", color: "var(--c-text)" },
+        ".cm-header-6": { fontSize: "1.0em", fontWeight: "bold", color: "var(--c-text-light)", fontStyle: "italic" }
     })
   ];
 

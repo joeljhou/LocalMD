@@ -1,4 +1,4 @@
-import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
+import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate, WidgetType, hoverTooltip } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { type Range, StateField, EditorState } from '@codemirror/state';
 
@@ -517,6 +517,73 @@ export const blockquotePlugin = ViewPlugin.fromClass(
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged) {
         this.decorations = getBlockquoteDecorations(update.view);
+      }
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  }
+);
+
+// --- Header Font Size & Styling ---
+
+function getHeaderDecorations(view: EditorView): DecorationSet {
+  const decorations: Range<Decoration>[] = [];
+  const { state } = view;
+
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        if (node.name.startsWith('ATXHeading')) {
+            // ATXHeading includes the hashes (e.g. "## Title")
+            // We need to determine the level (1-6)
+            // The first child is usually HeaderMark ("##")
+            const headerMark = node.node.firstChild;
+            if (headerMark && headerMark.name === 'HeaderMark') {
+                const markText = state.sliceDoc(headerMark.from, headerMark.to);
+                const level = markText.trim().length; // Count hashes
+                
+                if (level >= 1 && level <= 6) {
+                     // Apply line decoration for the whole heading line
+                     const line = state.doc.lineAt(node.from);
+                     decorations.push(Decoration.line({
+                         class: `cm-header-${level}`
+                     }).range(line.from));
+                }
+            }
+        } else if (node.name === 'SetextHeading1') {
+             // Level 1: "Title\n==="
+             const line = state.doc.lineAt(node.from);
+             decorations.push(Decoration.line({
+                 class: `cm-header-1`
+             }).range(line.from));
+        } else if (node.name === 'SetextHeading2') {
+             // Level 2: "Title\n---"
+             const line = state.doc.lineAt(node.from);
+             decorations.push(Decoration.line({
+                 class: `cm-header-2`
+             }).range(line.from));
+        }
+      }
+    });
+  }
+
+  return Decoration.set(decorations.sort((a, b) => a.from - b.from));
+}
+
+export const headerPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = getHeaderDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = getHeaderDecorations(update.view);
       }
     }
   },
