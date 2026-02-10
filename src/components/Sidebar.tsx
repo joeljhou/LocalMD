@@ -69,41 +69,65 @@ interface FileTreeItemProps {
   showHidden: boolean;
   expandedPath?: string[];
   expandSignal?: ExpandSignal | null;
+  parentPath?: string;
+  currentFilePath?: string | null;
+  onToggleExpand?: (path: string, isExpanded: boolean) => void;
+  initialExpandedPaths?: Set<string>;
 }
 
-function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden, expandedPath, expandSignal }: FileTreeItemProps) {
-  const [isOpen, setIsOpen] = useState(false);
+function FileTreeItem({ 
+  handle, 
+  onFileSelect, 
+  currentFile, 
+  level = 0, 
+  showHidden, 
+  expandedPath, 
+  expandSignal,
+  parentPath = '',
+  currentFilePath,
+  onToggleExpand,
+  initialExpandedPaths
+}: FileTreeItemProps) {
+  const itemPath = parentPath ? `${parentPath}/${handle.name}` : handle.name;
+  
+  const [isOpen, setIsOpen] = useState(() => {
+    return initialExpandedPaths?.has(itemPath) ?? false;
+  });
+  
   const [children, setChildren] = useState<FileSystemHandle[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
 
-  const isSelected = currentFile?.name === handle.name;
+  // Use path comparison for selection if available, fallback to name (though name is buggy for duplicates)
+  // If currentFilePath is provided, we use it for exact matching.
+  const isSelected = currentFilePath 
+    ? currentFilePath === itemPath 
+    : currentFile?.name === handle.name;
 
   // Handle expand/collapse all signal
   useEffect(() => {
     if (expandSignal && handle.kind === 'directory') {
-      setIsOpen(expandSignal.type === 'expand');
+      const newOpen = expandSignal.type === 'expand';
+      setIsOpen(newOpen);
+      onToggleExpand?.(itemPath, newOpen);
     }
-  }, [expandSignal, handle.kind]);
+  }, [expandSignal, handle.kind, itemPath, onToggleExpand]);
 
   // Auto-expand if part of the path
   useEffect(() => {
     if (expandedPath && expandedPath.length > 0 && handle.kind === 'directory') {
-      // expandedPath includes the full path relative to root: ['folderA', 'folderB', 'file.md']
-      // We are at some level. We need to check if WE are in the path.
-      // But we don't know our own full path easily without passing it down.
-      // Alternatively, we check if expandedPath[level] matches our name.
       if (expandedPath[level] === handle.name) {
-         if (!isOpen) setIsOpen(true);
+         if (!isOpen) {
+             setIsOpen(true);
+             onToggleExpand?.(itemPath, true);
+         }
       }
     }
-  }, [expandedPath, level, handle.name]);
+  }, [expandedPath, level, handle.name, itemPath, onToggleExpand]);
 
   // Scroll into view if selected and we just expanded/loaded
   useEffect(() => {
      if (isSelected && expandedPath && expandedPath.length > 0) {
-         // This is the target file
-         // Give a slight delay to ensure rendering
          setTimeout(() => {
              itemRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
          }, 100);
@@ -132,7 +156,9 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
 
   const handleClick = () => {
     if (handle.kind === 'directory') {
-      setIsOpen(!isOpen);
+      const newOpen = !isOpen;
+      setIsOpen(newOpen);
+      onToggleExpand?.(itemPath, newOpen);
     } else {
       onFileSelect(handle as FileSystemFileHandle);
     }
@@ -171,6 +197,10 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
               showHidden={showHidden}
               expandedPath={expandedPath}
               expandSignal={expandSignal}
+              parentPath={itemPath}
+              currentFilePath={currentFilePath}
+              onToggleExpand={onToggleExpand}
+              initialExpandedPaths={initialExpandedPaths}
             />
           ))}
         </div>
@@ -185,6 +215,60 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
   const [expandedPath, setExpandedPath] = useState<string[]>([]);
   const [expandSignal, setExpandSignal] = useState<ExpandSignal | null>(null);
   const [isAllExpanded, setIsAllExpanded] = useState(false);
+  
+  // State for file selection matching
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  
+  // State for persistence
+  const [initialExpandedPaths, setInitialExpandedPaths] = useState<Set<string>>(new Set());
+
+  // Load expanded paths from localStorage on mount
+  useEffect(() => {
+      try {
+          const saved = localStorage.getItem('localmd-expanded-paths');
+          if (saved) {
+              setInitialExpandedPaths(new Set(JSON.parse(saved)));
+          }
+      } catch (e) {
+          console.error("Failed to load expanded paths", e);
+      }
+  }, []);
+
+  // Update persistence helper
+  const updateExpandedPaths = (path: string, isExpanded: boolean) => {
+      setInitialExpandedPaths(prev => {
+          const next = new Set(prev);
+          if (isExpanded) {
+              next.add(path);
+          } else {
+              next.delete(path);
+          }
+          localStorage.setItem('localmd-expanded-paths', JSON.stringify(Array.from(next)));
+          return next;
+      });
+  };
+
+  // Resolve current file path whenever currentFile or directoryHandle changes
+  useEffect(() => {
+      const resolvePath = async () => {
+          if (!directoryHandle || !currentFile) {
+              setCurrentFilePath(null);
+              return;
+          }
+          try {
+              const path = await directoryHandle.resolve(currentFile);
+              if (path) {
+                  setCurrentFilePath(path.join('/'));
+              } else {
+                  setCurrentFilePath(null);
+              }
+          } catch (e) {
+              console.error("Failed to resolve current file path", e);
+              setCurrentFilePath(null);
+          }
+      };
+      resolvePath();
+  }, [directoryHandle, currentFile]);
 
   useEffect(() => {
     const loadRoot = async () => {
@@ -273,6 +357,9 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
             showHidden={showHidden}
             expandedPath={expandedPath}
             expandSignal={expandSignal}
+            currentFilePath={currentFilePath}
+            onToggleExpand={updateExpandedPaths}
+            initialExpandedPaths={initialExpandedPaths}
           />
         ))}
       </div>
