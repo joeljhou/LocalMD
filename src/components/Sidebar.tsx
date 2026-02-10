@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { File, Folder, FolderOpen, Eye, EyeOff, Locate } from 'lucide-react';
+import { File, Folder, FolderOpen, Eye, EyeOff, Locate, ChevronsDown, ChevronsUp } from 'lucide-react';
 
 interface SidebarProps {
   directoryHandle: FileSystemDirectoryHandle | null;
@@ -9,6 +9,11 @@ interface SidebarProps {
   onCreateFile: () => void;
 }
 
+interface ExpandSignal {
+  type: 'expand' | 'collapse';
+  id: number;
+}
+
 interface FileTreeItemProps {
   handle: FileSystemHandle;
   onFileSelect: (handle: FileSystemFileHandle) => void;
@@ -16,15 +21,23 @@ interface FileTreeItemProps {
   level?: number;
   showHidden: boolean;
   expandedPath?: string[];
+  expandSignal?: ExpandSignal | null;
 }
 
-function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden, expandedPath }: FileTreeItemProps) {
+function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden, expandedPath, expandSignal }: FileTreeItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [children, setChildren] = useState<FileSystemHandle[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
 
   const isSelected = currentFile?.name === handle.name;
+
+  // Handle expand/collapse all signal
+  useEffect(() => {
+    if (expandSignal && handle.kind === 'directory') {
+      setIsOpen(expandSignal.type === 'expand');
+    }
+  }, [expandSignal, handle.kind]);
 
   // Auto-expand if part of the path
   useEffect(() => {
@@ -110,6 +123,7 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
               level={level + 1}
               showHidden={showHidden}
               expandedPath={expandedPath}
+              expandSignal={expandSignal}
             />
           ))}
         </div>
@@ -122,6 +136,8 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
   const [rootChildren, setRootChildren] = useState<FileSystemHandle[]>([]);
   const [showHidden, setShowHidden] = useState(false);
   const [expandedPath, setExpandedPath] = useState<string[]>([]);
+  const [expandSignal, setExpandSignal] = useState<ExpandSignal | null>(null);
+  const [isAllExpanded, setIsAllExpanded] = useState(false);
 
   useEffect(() => {
     const loadRoot = async () => {
@@ -155,6 +171,12 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
       }
   };
 
+  const toggleExpandAll = () => {
+    const newType = isAllExpanded ? 'collapse' : 'expand';
+    setExpandSignal({ type: newType, id: Date.now() });
+    setIsAllExpanded(!isAllExpanded);
+  };
+
   if (!directoryHandle) return null;
 
   return (
@@ -172,6 +194,13 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
                 title="Locate Current File"
             >
                 <Locate size={14} />
+            </button>
+            <button
+                onClick={toggleExpandAll}
+                className="p-1 rounded transition-colors text-[var(--c-text-light)] hover:bg-[var(--c-bg-lighter)] hover:text-[var(--c-brand)]"
+                title={isAllExpanded ? "Collapse All" : "Expand All"}
+            >
+                {isAllExpanded ? <ChevronsUp size={14} /> : <ChevronsDown size={14} />}
             </button>
             <button 
             onClick={() => setShowHidden(!showHidden)}
@@ -196,6 +225,7 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
             currentFile={currentFile}
             showHidden={showHidden}
             expandedPath={expandedPath}
+            expandSignal={expandSignal}
           />
         ))}
       </div>
