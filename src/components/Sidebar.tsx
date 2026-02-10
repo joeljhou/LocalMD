@@ -14,6 +14,53 @@ interface ExpandSignal {
   id: number;
 }
 
+const TEXT_EXTENSIONS = new Set([
+  'md', 'markdown', 'txt', 'text',
+  'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs',
+  'json', 'jsonc',
+  'css', 'scss', 'less', 'sass',
+  'html', 'htm', 'xhtml',
+  'xml', 'yaml', 'yml', 'toml',
+  'c', 'cpp', 'h', 'hpp', 'cc', 'cxx',
+  'cs', 'go', 'java', 'kt', 'kts',
+  'py', 'pyw', 'rb', 'erb',
+  'php', 'pl', 'pm',
+  'sh', 'bash', 'zsh', 'bat', 'cmd', 'ps1',
+  'sql', 'graphql', 'gql',
+  'rs', 'swift', 'dart', 'lua', 'r',
+  'ini', 'conf', 'config', 'cfg', 'properties',
+  'diff', 'patch',
+  'log',
+  'svg', 'vue', 'svelte', 'astro'
+]);
+
+const TEXT_FILENAMES = new Set([
+  'license', 'readme', 'makefile', 'dockerfile', 'jenkinsfile',
+  'changelog', 'notice', 'authors', 'contributors', 'copying'
+]);
+
+const isPreviewable = (name: string) => {
+  const lowerName = name.toLowerCase();
+  if (TEXT_FILENAMES.has(lowerName)) return true;
+  
+  const parts = lowerName.split('.');
+  if (parts.length > 1) {
+    const ext = parts.pop();
+    if (ext && TEXT_EXTENSIONS.has(ext)) return true;
+  }
+  return false;
+};
+
+const shouldShow = (handle: FileSystemHandle, showHidden: boolean) => {
+  if (showHidden) return true; // Show all
+  
+  if (handle.name.startsWith('.')) return false; // Always hide dotfiles if not showing hidden
+  
+  if (handle.kind === 'directory') return true; // Always show directories
+  
+  return isPreviewable(handle.name);
+};
+
 interface FileTreeItemProps {
   handle: FileSystemHandle;
   onFileSelect: (handle: FileSystemFileHandle) => void;
@@ -113,7 +160,7 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
       {isOpen && (
         <div>
           {children
-            .filter(child => showHidden || !child.name.startsWith('.'))
+            .filter(child => shouldShow(child, showHidden))
             .map((child) => (
             <FileTreeItem
               key={child.name}
@@ -216,7 +263,7 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
             <div className="px-4 py-2 text-xs text-[var(--c-text-lighter)]">Empty directory</div>
         )}
         {rootChildren
-          .filter(child => showHidden || !child.name.startsWith('.'))
+          .filter(child => shouldShow(child, showHidden))
           .map((child) => (
           <FileTreeItem
             key={child.name}
