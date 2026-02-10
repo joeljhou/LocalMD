@@ -12,6 +12,7 @@ function App() {
   const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [pendingDirectoryHandle, setPendingDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [pendingFileHandle, setPendingFileHandle] = useState<FileSystemFileHandle | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isModified, setIsModified] = useState(false);
   
@@ -30,6 +31,20 @@ function App() {
   
   const lastModifiedRef = useRef<number>(0);
 
+  const loadFile = async (handle: FileSystemFileHandle) => {
+    try {
+        const file = await handle.getFile();
+        const text = await file.text();
+        setFileHandle(handle);
+        setFileName(file.name);
+        setMarkdown(text);
+        setIsModified(false);
+        lastModifiedRef.current = file.lastModified;
+    } catch (err) {
+        console.error('Failed to load file', err);
+    }
+  };
+
   // Persistence Effects
   useEffect(() => {
     localStorage.setItem('view-mode', viewMode);
@@ -40,7 +55,8 @@ function App() {
   }, [fontSize]);
 
   useEffect(() => {
-    const restoreDirectory = async () => {
+    const restoreSession = async () => {
+      // Restore Directory
       try {
         const handle = await get('directory-handle');
         if (handle) {
@@ -56,27 +72,71 @@ function App() {
       } catch (err) {
         console.error('Failed to restore directory', err);
       }
+
+      // Restore File
+      try {
+        const handle = await get('file-handle');
+        if (handle) {
+            // @ts-ignore
+            const options = { mode: 'read' };
+            if ((await handle.queryPermission(options)) === 'granted') {
+                await loadFile(handle);
+            } else {
+                setPendingFileHandle(handle);
+            }
+        }
+      } catch (err) {
+        console.error('Failed to restore file', err);
+      }
     };
-    restoreDirectory();
+    restoreSession();
   }, []);
 
   useEffect(() => {
     if (directoryHandle) {
-      set( 'directory-handle', directoryHandle );
+      set('directory-handle', directoryHandle);
     }
   }, [directoryHandle]);
 
+  useEffect(() => {
+    if (fileHandle) {
+      set('file-handle', fileHandle);
+    }
+  }, [fileHandle]);
+
   const handleRestoreSession = async () => {
-    if (!pendingDirectoryHandle) return;
-    try {
-      // @ts-ignore
-      const options = { mode: 'read' };
-      if ((await pendingDirectoryHandle.requestPermission(options)) === 'granted') {
-        setDirectoryHandle(pendingDirectoryHandle);
-        setPendingDirectoryHandle(null);
-      }
-    } catch (err) {
-      console.error('Failed to request permission', err);
+    // Restore Directory
+    if (pendingDirectoryHandle) {
+        try {
+          // @ts-ignore
+          const options = { mode: 'read' };
+          if ((await pendingDirectoryHandle.requestPermission(options)) === 'granted') {
+            setDirectoryHandle(pendingDirectoryHandle);
+            setPendingDirectoryHandle(null);
+          }
+        } catch (err) {
+          console.error('Failed to request directory permission', err);
+        }
+    }
+
+    // Restore File
+    if (pendingFileHandle) {
+        try {
+          // @ts-ignore
+          const options = { mode: 'read' };
+          // Check if permission is already granted (e.g. via directory restore)
+          if ((await pendingFileHandle.queryPermission(options)) === 'granted') {
+             await loadFile(pendingFileHandle);
+             setPendingFileHandle(null);
+          } else {
+             if ((await pendingFileHandle.requestPermission(options)) === 'granted') {
+                await loadFile(pendingFileHandle);
+                setPendingFileHandle(null);
+             }
+          }
+        } catch (err) {
+          console.error('Failed to request file permission', err);
+        }
     }
   };
 
@@ -107,20 +167,6 @@ function App() {
       setDirectoryHandle(handle);
     } catch (err) {
       console.log('Folder open cancelled', err);
-    }
-  };
-
-  const loadFile = async (handle: FileSystemFileHandle) => {
-    try {
-        const file = await handle.getFile();
-        const text = await file.text();
-        setFileHandle(handle);
-        setFileName(file.name);
-        setMarkdown(text);
-        setIsModified(false);
-        lastModifiedRef.current = file.lastModified;
-    } catch (err) {
-        console.error('Failed to load file', err);
     }
   };
 
@@ -260,11 +306,13 @@ function App() {
       />
       
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {pendingDirectoryHandle && !directoryHandle && (
+        {(pendingDirectoryHandle || pendingFileHandle) && (
            <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center justify-between text-sm text-yellow-800 flex-shrink-0">
               <span className="flex items-center">
                  <span className="font-medium mr-2">Previous session detected:</span> 
-                 {pendingDirectoryHandle.name}
+                 {pendingDirectoryHandle ? pendingDirectoryHandle.name : ''}
+                 {pendingDirectoryHandle && pendingFileHandle ? ' / ' : ''}
+                 {pendingFileHandle ? pendingFileHandle.name : ''}
               </span>
               <button 
                  onClick={handleRestoreSession}
