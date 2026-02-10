@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { File, Folder, FolderOpen, Eye, EyeOff} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { File, Folder, FolderOpen, Eye, EyeOff, Locate } from 'lucide-react';
 
 interface SidebarProps {
   directoryHandle: FileSystemDirectoryHandle | null;
@@ -15,14 +15,40 @@ interface FileTreeItemProps {
   currentFile: FileSystemFileHandle | null;
   level?: number;
   showHidden: boolean;
+  expandedPath?: string[];
 }
 
-function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden }: FileTreeItemProps) {
+function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden, expandedPath }: FileTreeItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [children, setChildren] = useState<FileSystemHandle[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const itemRef = useRef<HTMLDivElement>(null);
 
   const isSelected = currentFile?.name === handle.name;
+
+  // Auto-expand if part of the path
+  useEffect(() => {
+    if (expandedPath && expandedPath.length > 0 && handle.kind === 'directory') {
+      // expandedPath includes the full path relative to root: ['folderA', 'folderB', 'file.md']
+      // We are at some level. We need to check if WE are in the path.
+      // But we don't know our own full path easily without passing it down.
+      // Alternatively, we check if expandedPath[level] matches our name.
+      if (expandedPath[level] === handle.name) {
+         if (!isOpen) setIsOpen(true);
+      }
+    }
+  }, [expandedPath, level, handle.name]);
+
+  // Scroll into view if selected and we just expanded/loaded
+  useEffect(() => {
+     if (isSelected && expandedPath && expandedPath.length > 0) {
+         // This is the target file
+         // Give a slight delay to ensure rendering
+         setTimeout(() => {
+             itemRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+         }, 100);
+     }
+  }, [isSelected, expandedPath]);
 
   useEffect(() => {
     if (isOpen && handle.kind === 'directory' && !isLoaded) {
@@ -55,6 +81,7 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
   return (
     <div>
       <div
+        ref={itemRef}
         className={`flex items-center py-1 px-2 cursor-pointer select-none text-sm transition-colors whitespace-nowrap
           ${isSelected ? 'bg-[var(--c-brand-light)]/20 text-[var(--c-brand)]' : 'text-[var(--c-text)] hover:bg-[var(--c-bg-lighter)]'}
         `}
@@ -82,6 +109,7 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
               currentFile={currentFile}
               level={level + 1}
               showHidden={showHidden}
+              expandedPath={expandedPath}
             />
           ))}
         </div>
@@ -93,6 +121,7 @@ function FileTreeItem({ handle, onFileSelect, currentFile, level = 0, showHidden
 export function Sidebar({ directoryHandle, onFileSelect, currentFile, className }: SidebarProps) {
   const [rootChildren, setRootChildren] = useState<FileSystemHandle[]>([]);
   const [showHidden, setShowHidden] = useState(false);
+  const [expandedPath, setExpandedPath] = useState<string[]>([]);
 
   useEffect(() => {
     const loadRoot = async () => {
@@ -111,6 +140,21 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
     loadRoot();
   }, [directoryHandle]);
 
+  const handleLocate = async () => {
+      if (!directoryHandle || !currentFile) return;
+      try {
+          // Resolve returns array of directory names leading to file, e.g. ["sub", "nested", "file.md"]
+          const path = await directoryHandle.resolve(currentFile);
+          if (path) {
+              setExpandedPath(path);
+              // Reset after a delay so user can close folders if they want
+              setTimeout(() => setExpandedPath([]), 2000);
+          }
+      } catch (err) {
+          console.error("Failed to locate file", err);
+      }
+  };
+
   if (!directoryHandle) return null;
 
   return (
@@ -120,13 +164,23 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
       >
         <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--c-border)] flex-shrink-0">
         <span className="text-xs font-bold text-[var(--c-text-light)] uppercase tracking-wider">Explorer</span>
-        <button 
-           onClick={() => setShowHidden(!showHidden)}
-           className={`p-1 rounded transition-colors ${showHidden ? 'text-[var(--c-brand)] bg-[var(--c-brand-light)]/10' : 'text-[var(--c-text-light)] hover:bg-[var(--c-bg-lighter)]'}`}
-           title={showHidden ? "Hide Hidden Files" : "Show Hidden Files"}
-        >
-           {showHidden ? <Eye size={14} /> : <EyeOff size={14} />}
-        </button>
+        <div className="flex items-center space-x-1">
+            <button
+                onClick={handleLocate}
+                disabled={!currentFile}
+                className={`p-1 rounded transition-colors ${!currentFile ? 'opacity-30 cursor-not-allowed' : 'text-[var(--c-text-light)] hover:bg-[var(--c-bg-lighter)] hover:text-[var(--c-brand)]'}`}
+                title="Locate Current File"
+            >
+                <Locate size={14} />
+            </button>
+            <button 
+            onClick={() => setShowHidden(!showHidden)}
+            className={`p-1 rounded transition-colors ${showHidden ? 'text-[var(--c-brand)] bg-[var(--c-brand-light)]/10' : 'text-[var(--c-text-light)] hover:bg-[var(--c-bg-lighter)]'}`}
+            title={showHidden ? "Hide Hidden Files" : "Show Hidden Files"}
+            >
+            {showHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+            </button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 custom-scrollbar">
         {rootChildren.length === 0 && (
@@ -141,6 +195,7 @@ export function Sidebar({ directoryHandle, onFileSelect, currentFile, className 
             onFileSelect={onFileSelect}
             currentFile={currentFile}
             showHidden={showHidden}
+            expandedPath={expandedPath}
           />
         ))}
       </div>
