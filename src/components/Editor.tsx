@@ -3,8 +3,19 @@ import CodeMirror from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { EditorView } from '@codemirror/view';
-import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorField, blockquotePlugin, headerPlugin, imagePreviewPlugin } from './EditorExtensions';
+import { EditorView, keymap } from '@codemirror/view';
+import { Prec } from '@codemirror/state';
+import { 
+    codeBlockHighlight, 
+    linkHighlightPlugin, 
+    linkClickHandler, 
+    tableEditorField, 
+    blockquotePlugin, 
+    headerPlugin, 
+    imagePreviewPlugin,
+    inlineStylePlugin,
+    toggleStyle
+} from './EditorExtensions';
 
 interface EditorProps {
   value: string;
@@ -44,7 +55,18 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
     tableEditorField,
     blockquotePlugin,
     headerPlugin,
+    inlineStylePlugin,
     imagePreviewPlugin,
+    Prec.highest(keymap.of([
+        { key: "Mod-b", run: (view) => toggleStyle(view, "**") },
+        { key: "Mod-i", run: (view) => toggleStyle(view, "*") },
+        { key: "Mod-u", run: (view) => toggleStyle(view, "<u>", "</u>") },
+        { key: "Mod-Shift-x", run: (view) => toggleStyle(view, "~~") },
+        { key: "`", run: (view) => {
+            if (view.state.selection.main.empty) return false;
+            return toggleStyle(view, "`");
+        }}
+    ])),
     EditorView.theme({
         "&": {
             backgroundColor: "transparent !important",
@@ -112,7 +134,27 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
         ".cm-header-3": { fontSize: "1.5em", fontWeight: "bold", color: "var(--c-text)" },
         ".cm-header-4": { fontSize: "1.25em", fontWeight: "bold", color: "var(--c-text)" },
         ".cm-header-5": { fontSize: "1.1em", fontWeight: "bold", color: "var(--c-text)" },
-        ".cm-header-6": { fontSize: "1.0em", fontWeight: "bold", color: "var(--c-text-light)", fontStyle: "italic" }
+        ".cm-header-6": { fontSize: "1.0em", fontWeight: "bold", color: "var(--c-text-light)", fontStyle: "italic" },
+        // Inline Styles
+        ".cm-inline-code": {
+            backgroundColor: "var(--c-bg-light)",
+            color: "#d9712b",
+            fontFamily: "var(--font-code)",
+            padding: "2px 4px",
+            borderRadius: "4px",
+            fontSize: "0.9em"
+        },
+        ".cm-bold": { fontWeight: "bold" },
+        ".cm-italic": { fontStyle: "italic" },
+        ".cm-underline": { textDecoration: "underline" },
+        ".cm-strikethrough": { textDecoration: "line-through" },
+        ".cm-hidden-symbol": { display: "none" },
+        ".cm-semantic-active": {
+            // No background color to avoid confusion with selection
+            // Just having the symbols appear is enough indication of focus
+        },
+        // Selection highlight enhancement
+        // Removed .cm-selectionMatch as highlightSelectionMatches is disabled
     })
   ];
 
@@ -143,7 +185,7 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             rectangularSelection: true,
             crosshairCursor: true,
             highlightActiveLine: true,
-            highlightSelectionMatches: true,
+            highlightSelectionMatches: false, // Disable highlighting same content
             closeBracketsKeymap: true,
             defaultKeymap: true,
             searchKeymap: true,

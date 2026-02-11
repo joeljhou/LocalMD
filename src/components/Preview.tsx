@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import yaml from 'js-yaml';
@@ -122,6 +123,10 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
         prose-pre:bg-transparent prose-pre:p-0
         prose-img:rounded-lg prose-img:shadow-md
         prose-blockquote:border-l-4 prose-blockquote:border-[var(--c-brand)]
+        prose-code:before:content-none prose-code:after:content-none
+        prose-code:bg-[#f8f8f8] prose-code:text-[#d9712b] prose-code:font-mono prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+        dark:prose-code:bg-[#2d2d2d] dark:prose-code:text-[#d9712b]
+        prose-em:italic
       `}
     >
       {hasFrontMatter && (
@@ -213,6 +218,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
 
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={{
           code({node, inline, className, children, ...props}: any) {
             const match = /language-(\w+)/.exec(className || '');

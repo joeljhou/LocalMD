@@ -1,6 +1,58 @@
 import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate, WidgetType, hoverTooltip } from '@codemirror/view';
 import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
-import { type Range, StateField, type EditorState } from '@codemirror/state';
+import { type Range, StateField, type EditorState, EditorSelection } from '@codemirror/state';
+
+// --- Helper: Wrap Selection with Symbols ---
+export const toggleStyle = (view: EditorView, symbol: string, endSymbol?: string): boolean => {
+  const { state } = view;
+  const { selection } = state;
+  const endSym = endSymbol || symbol;
+
+  const changes = selection.ranges.map(range => {
+    const text = state.sliceDoc(range.from, range.to);
+    
+    // 1. Check if the selection itself is already wrapped
+    if (text.startsWith(symbol) && text.endsWith(endSym) && text.length >= (symbol.length + endSym.length)) {
+      const innerText = text.slice(symbol.length, -endSym.length);
+      return {
+        from: range.from,
+        to: range.to,
+        insert: innerText,
+        range: EditorSelection.range(range.from, range.from + innerText.length)
+      };
+    }
+
+    // 2. Check if symbols are immediately outside the selection
+    const before = state.sliceDoc(range.from - symbol.length, range.from);
+    const after = state.sliceDoc(range.to, range.to + endSym.length);
+    
+    if (before === symbol && after === endSym) {
+      // Unwrap
+      return {
+        from: range.from - symbol.length,
+        to: range.to + endSym.length,
+        insert: text,
+        range: EditorSelection.range(range.from - symbol.length, range.to - symbol.length)
+      };
+    }
+
+    // 3. Otherwise: Wrap
+    return {
+      from: range.from,
+      to: range.to,
+      insert: symbol + text + endSym,
+      range: EditorSelection.range(range.from + symbol.length, range.to + symbol.length)
+    };
+  });
+
+  view.dispatch({
+    changes: changes.map(c => ({ from: c.from, to: c.to, insert: c.insert })),
+    selection: EditorSelection.create(changes.map(c => c.range)),
+    userEvent: 'input.style'
+  });
+
+  return true;
+};
 
 const codeBlockClass = 'cm-code-block-bg';
 
@@ -501,6 +553,163 @@ export const tableEditorField = StateField.define<DecorationSet>({
   },
   provide: f => EditorView.decorations.from(f)
 });
+
+// --- Inline Styles (WYSIWYG) ---
+
+function getInlineStyleDecorations(view: EditorView): DecorationSet {
+  const decorations: Range<Decoration>[] = [];
+  const { state } = view;
+  const selection = state.selection.main;
+
+  for (const { from, to } of view.visibleRanges) {
+    const tree = ensureSyntaxTree(state, to, 50);
+    if (!tree) continue;
+
+    tree.iterate({
+      from,
+      to,
+      enter: (node) => {
+        const isCursorInside = selection.head >= node.from && selection.head <= node.to;
+        const activeClass = isCursorInside ? ' cm-semantic-active' : '';
+
+        // 1. Inline Code (Highlight but don't hide backticks)
+        if (node.name === 'InlineCode') {
+          decorations.push(Decoration.mark({
+            class: 'cm-inline-code' + activeClass
+          }).range(node.from, node.to));
+        }
+
+        // 2. Bold (StrongEmphasis)
+        if (node.name === 'StrongEmphasis') {
+          decorations.push(Decoration.mark({ class: 'cm-bold' + activeClass }).range(node.from, node.to));
+          if (!isCursorInside) {
+            // Hide ** marks
+            const cursor = node.node.cursor();
+            if (cursor.firstChild()) {
+              do {
+                if (cursor.name === 'EmphasisMark') {
+                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                }
+              } while (cursor.nextSibling());
+            }
+          }
+        }
+
+        // 3. Italic (Emphasis)
+        if (node.name === 'Emphasis') {
+          decorations.push(Decoration.mark({ class: 'cm-italic' + activeClass }).range(node.from, node.to));
+          if (!isCursorInside) {
+            // Hide * or _ marks
+            const cursor = node.node.cursor();
+            if (cursor.firstChild()) {
+              do {
+                if (cursor.name === 'EmphasisMark') {
+                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                }
+              } while (cursor.nextSibling());
+            }
+          }
+        }
+
+        // 4. Strikethrough
+        if (node.name === 'Strikethrough') {
+          decorations.push(Decoration.mark({ class: 'cm-strikethrough' + activeClass }).range(node.from, node.to));
+          if (!isCursorInside) {
+            const cursor = node.node.cursor();
+            if (cursor.firstChild()) {
+              do {
+                if (cursor.name === 'StrikethroughMark') {
+                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                }
+              } while (cursor.nextSibling());
+            }
+          }
+        }
+
+        // 5. Underline (<u>内容</u>)
+        // Note: Markdown parser often treats <u> as HTMLTag
+        if (node.name === 'HTMLTag') {
+            const text = state.sliceDoc(node.from, node.to).toLowerCase();
+            if (text.startsWith('<u>')) {
+                // Find closing tag
+                let pos = node.to;
+                const endPos = Math.min(state.doc.length, node.to + 1000); // Limit search range
+                const docText = state.sliceDoc(pos, endPos);
+                const closeIndex = docText.toLowerCase().indexOf('</u>');
+                
+                if (closeIndex !== -1) {
+                    const contentStart = node.to;
+                    const contentEnd = node.to + closeIndex;
+                    const closeTagStart = contentEnd;
+                    const closeTagEnd = closeTagStart + 4;
+                    
+                    const isAnyPartFocused = (selection.head >= node.from && selection.head <= closeTagEnd);
+                    const activeClassRange = isAnyPartFocused ? ' cm-semantic-active' : '';
+
+                    // Apply underline to content
+                    decorations.push(Decoration.mark({ class: 'cm-underline' + activeClassRange }).range(contentStart, contentEnd));
+                    
+                    if (!isAnyPartFocused) {
+                        // Hide tags if not focused
+                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
+                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(closeTagStart, closeTagEnd));
+                    }
+                } else {
+                    // No closing tag found, just treat the <u> tag normally (maybe it's just a raw tag)
+                    if (!isCursorInside) {
+                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
+                    }
+                }
+            } else if (text === '</u>') {
+                // Closing tag: we only need to hide it if NOT part of a focused <u>...</u> range
+                // But wait, the opening tag logic above already handles hiding BOTH tags if they form a pair.
+                // However, the tree iteration will hit </u> eventually. 
+                // We need to check if it's already been handled or if it should be hidden.
+                
+                // To avoid double-hiding or missing it, let's see:
+                // If we are at </u>, we look BACK for <u>.
+                const startPos = Math.max(0, node.from - 1000);
+                const docTextBefore = state.sliceDoc(startPos, node.from);
+                const openIndex = docTextBefore.toLowerCase().lastIndexOf('<u>');
+                
+                if (openIndex !== -1) {
+                    const openTagStart = startPos + openIndex;
+                    const isAnyPartFocused = (selection.head >= openTagStart && selection.head <= node.to);
+                    
+                    if (!isAnyPartFocused) {
+                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
+                    }
+                } else {
+                    // No opening tag found, hide it if not focused
+                    if (!isCursorInside) {
+                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
+                    }
+                }
+            }
+        }
+      }
+    });
+  }
+
+  return Decoration.set(deduplicateDecorations(decorations));
+}
+
+export const inlineStylePlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = getInlineStyleDecorations(view);
+    }
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        this.decorations = getInlineStyleDecorations(update.view);
+      }
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  }
+);
 
 // --- Blockquote Styling ---
 

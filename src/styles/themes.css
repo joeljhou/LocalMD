@@ -2,6 +2,7 @@
   /* 默认主题 (绿色) - 对应 VuePress 风格 */
   /* Default Theme (VuePress inspired) */
   --c-brand: #3eaf7c;          /* 品牌主色 (绿色) */
+  --c-brand-rgb: 62, 175, 124;
   --c-brand-light: #4abf8a;    /* 品牌亮色 */
   --c-text: #2c3e50;           /* 主要文本颜色 */
   --c-text-light: #3a5169;     /* 次要文本颜色 */
@@ -36,11 +37,13 @@ html.dark {
 /* 紫色主题 (Purple Theme) */
 html.theme-purple {
   --c-brand: #8b5cf6;          /* 紫色主色 */
+  --c-brand-rgb: 139, 92, 246;
   --c-brand-light: #a78bfa;
 }
 
 /* 蓝色主题 (Blue Theme) */
 html.theme-blue {
   --c-brand: #3b82f6;          /* 蓝色主色 */
+  --c-brand-rgb: 59, 130, 246;
   --c-brand-light: #60a5fa;
 }
