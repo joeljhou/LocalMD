@@ -782,6 +782,7 @@ export const blockquotePlugin = ViewPlugin.fromClass(
 function getHeaderDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const { state } = view;
+  const selection = state.selection.main;
 
   for (const { from, to } of view.visibleRanges) {
     const tree = ensureSyntaxTree(state, to, 50);
@@ -792,34 +793,53 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
       to,
       enter: (node) => {
         if (node.name.startsWith('ATXHeading')) {
-            // ATXHeading includes the hashes (e.g. "## Title")
-            // We need to determine the level (1-6)
-            // The first child is usually HeaderMark ("##")
-            const headerMark = node.node.firstChild;
-            if (headerMark && headerMark.name === 'HeaderMark') {
-                const markText = state.sliceDoc(headerMark.from, headerMark.to);
-                const level = markText.trim().length; // Count hashes
-                
-                if (level >= 1 && level <= 6) {
-                     // Apply line decoration for the whole heading line
-                     const line = state.doc.lineAt(node.from);
-                     decorations.push(Decoration.line({
-                         class: `cm-header-${level}`
-                     }).range(line.from));
+          const level = parseInt(node.name.slice(-1));
+          if (isNaN(level)) return;
+
+          const line = state.doc.lineAt(node.from);
+          const isCursorInside = selection.head >= line.from && selection.head <= line.to;
+          
+          // Apply heading style to the entire line
+          decorations.push(Decoration.line({
+            class: `cm-header-${level}`
+          }).range(line.from));
+
+          // Handle # symbols
+          const cursor = node.node.cursor();
+          if (cursor.firstChild()) {
+            do {
+              if (cursor.name === 'HeaderMark') {
+                if (!isCursorInside) {
+                  // Hide # symbols when cursor is NOT inside
+                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                } else {
+                  // Show # symbols with custom color when cursor IS inside
+                  decorations.push(Decoration.mark({ class: 'cm-header-mark' }).range(cursor.from, cursor.to));
                 }
-            }
-        } else if (node.name === 'SetextHeading1') {
-             // Level 1: "Title\n==="
-             const line = state.doc.lineAt(node.from);
-             decorations.push(Decoration.line({
-                 class: `cm-header-1`
-             }).range(line.from));
-        } else if (node.name === 'SetextHeading2') {
-             // Level 2: "Title\n---"
-             const line = state.doc.lineAt(node.from);
-             decorations.push(Decoration.line({
-                 class: `cm-header-2`
-             }).range(line.from));
+              }
+            } while (cursor.nextSibling());
+          }
+        } else if (node.name === 'SetextHeading1' || node.name === 'SetextHeading2') {
+          const level = node.name.endsWith('1') ? 1 : 2;
+          const line = state.doc.lineAt(node.from);
+          
+          decorations.push(Decoration.line({
+              class: `cm-header-${level}`
+          }).range(line.from));
+
+          // In Setext headings, the HeaderMark (=== or ---) is usually on the next line
+          // But it's part of the same node. We only hide it if cursor is not in the whole heading node.
+          const nodeIsActive = selection.head >= node.from && selection.head <= node.to;
+          if (!nodeIsActive) {
+             const cursor = node.node.cursor();
+             if (cursor.firstChild()) {
+                 do {
+                     if (cursor.name === 'HeaderMark') {
+                         decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                     }
+                 } while (cursor.nextSibling());
+             }
+          }
         }
       }
     });
@@ -837,7 +857,7 @@ export const headerPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet) {
         this.decorations = getHeaderDecorations(update.view);
       }
     }

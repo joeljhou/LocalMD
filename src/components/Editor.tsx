@@ -129,12 +129,21 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             marginRight: "0.5em"
         },
         // Header Styles
-        ".cm-header-1": { fontSize: "2.0em", fontWeight: "bold", color: "var(--c-text)" },
-        ".cm-header-2": { fontSize: "1.75em", fontWeight: "bold", color: "var(--c-text)" },
-        ".cm-header-3": { fontSize: "1.5em", fontWeight: "bold", color: "var(--c-text)" },
-        ".cm-header-4": { fontSize: "1.25em", fontWeight: "bold", color: "var(--c-text)" },
-        ".cm-header-5": { fontSize: "1.1em", fontWeight: "bold", color: "var(--c-text)" },
-        ".cm-header-6": { fontSize: "1.0em", fontWeight: "bold", color: "var(--c-text-light)", fontStyle: "italic" },
+        ".cm-header-1, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6": {
+            textDecoration: "none !important",
+            borderBottom: "none !important",
+            color: theme === 'dark' ? "#c8cdd9 !important" : "var(--c-text)"
+        },
+        ".cm-header-1 span, .cm-header-2 span, .cm-header-3 span, .cm-header-4 span, .cm-header-5 span, .cm-header-6 span": {
+            color: "inherit"
+        },
+        ".cm-header-mark": { color: "#666666 !important" },
+        ".cm-header-1": { fontSize: "2.0em", fontWeight: "bold" },
+        ".cm-header-2": { fontSize: "1.75em", fontWeight: "bold" },
+        ".cm-header-3": { fontSize: "1.5em", fontWeight: "bold" },
+        ".cm-header-4": { fontSize: "1.25em", fontWeight: "bold" },
+        ".cm-header-5": { fontSize: "1.1em", fontWeight: "bold" },
+        ".cm-header-6": { fontSize: "1.0em", fontWeight: "bold", fontStyle: "italic" },
         // Inline Styles
         ".cm-inline-code": {
             backgroundColor: "var(--c-bg-light)",
