@@ -810,8 +810,13 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
             do {
               if (cursor.name === 'HeaderMark') {
                 if (!isCursorInside) {
-                  // Hide # symbols when cursor is NOT inside
-                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                  // Hide # symbols AND the space after them when cursor is NOT inside
+                  // Usually there's a space after #. Check if next character is a space.
+                  let end = cursor.to;
+                  if (state.doc.sliceString(cursor.to, cursor.to + 1) === ' ') {
+                    end++;
+                  }
+                  decorations.push(Decoration.replace({}).range(cursor.from, end));
                 } else {
                   // Show # symbols with custom color when cursor IS inside
                   decorations.push(Decoration.mark({ class: 'cm-header-mark' }).range(cursor.from, cursor.to));
@@ -835,7 +840,7 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
              if (cursor.firstChild()) {
                  do {
                      if (cursor.name === 'HeaderMark') {
-                         decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                         decorations.push(Decoration.replace({}).range(cursor.from, cursor.to));
                      }
                  } while (cursor.nextSibling());
              }

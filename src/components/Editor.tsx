@@ -132,10 +132,21 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
         ".cm-header-1, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6": {
             textDecoration: "none !important",
             borderBottom: "none !important",
-            color: theme === 'dark' ? "#c8cdd9 !important" : "var(--c-text)"
+            boxShadow: "none !important",
+            outline: "none !important",
+            backgroundImage: "none !important",
+            borderImage: "none !important",
+            color: theme === 'dark' ? "#ffffff !important" : "var(--c-text)"
+        },
+        // Target the line element directly for themes that apply borders there
+        ".cm-line.cm-header-1, .cm-line.cm-header-2, .cm-line.cm-header-3, .cm-line.cm-header-4, .cm-line.cm-header-5, .cm-line.cm-header-6": {
+            borderBottom: "none !important",
+            boxShadow: "none !important",
+            backgroundImage: "none !important"
         },
         ".cm-header-1 span, .cm-header-2 span, .cm-header-3 span, .cm-header-4 span, .cm-header-5 span, .cm-header-6 span": {
-            color: "inherit"
+            color: "inherit",
+            textDecoration: "none !important"
         },
         ".cm-header-mark": { color: "#666666 !important" },
         ".cm-header-1": { fontSize: "2.0em", fontWeight: "bold" },
