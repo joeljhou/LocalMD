@@ -30,6 +30,7 @@ function App() {
   const { theme, toggleTheme, accent, changeAccent } = useTheme();
   
   const lastModifiedRef = useRef<number>(0);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadFile = async (handle: FileSystemFileHandle) => {
     try {
@@ -204,6 +205,17 @@ function App() {
   const handleChange = (value: string) => {
     setMarkdown(value);
     setIsModified(true);
+
+    // Auto-save logic with debounce (2 seconds)
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    if (fileHandle) {
+      autoSaveTimerRef.current = setTimeout(() => {
+        handleSave();
+      }, 2000);
+    }
   };
 
   // Drag and drop

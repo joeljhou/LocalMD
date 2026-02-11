@@ -1,49 +1,74 @@
-# LocalMD - Local Markdown Editor Chrome Extension
+# LocalMD Pro - 专业级本地 Markdown 编辑器
 
-LocalMD is a modern, lightweight Chrome extension for editing Markdown files locally. It features real-time preview, split-view editing, and support for common Markdown syntax.
+LocalMD Pro 是一款现代、轻量的 Chrome 扩展，专为高效编辑本地 Markdown 文件而设计。它集成了所见即所得 (WYSIWYG) 的交互体验、强大的实时预览以及深度的本地文件系统集成。
 
-## Features
+## 🌟 核心特性
 
-- **Local File Management**: Open, edit, and save `.md` files directly from your local file system.
-- **Real-time Preview**: See your changes instantly as you type.
-- **Split & Fullscreen Modes**: Toggle between split view (Editor + Preview) and editor-only mode.
-- **Modern UI**: Clean interface built with React and Tailwind CSS.
-- **Dark/Light Mode**: Automatically adapts to your system theme or can be toggled manually.
-- **Syntax Highlighting**: Code blocks are syntax highlighted.
-- **Drag & Drop**: Drag a markdown file into the editor to open it.
-- **Shortcuts**: `Cmd/Ctrl + S` to save.
+### 1. 深度本地集成
+- **文件管理**: 直接打开、编辑并保存本地 `.md` 文件，支持 File System Access API。
+- **文件夹支持**: 侧边栏支持打开整个项目文件夹，通过文件树快速切换文件。
+- **自动恢复**: 重新启动扩展时，自动恢复上次打开的文件夹和文件状态（需用户确认权限）。
+- **拖放支持**: 直接将文件或文件夹拖入编辑器即可打开。
 
-## Installation
+### 2. 所见即所得 (WYSIWYG) 编辑体验
+- **行内样式预览**: 加粗、斜体、下划线、删除线和行内代码在非编辑状态下自动隐藏语法符号。
+- **智能链接折叠**: 链接 URL 默认折叠为 `...`，点击或移动光标进入时自动展开。
+- **表格 Widget**: 非编辑状态下将 Markdown 表格渲染为交互式 HTML 表格，支持点击单元格直接编辑。
+- **图片行内预览**: 实时渲染图片预览，光标移入时恢复源码以便编辑。
+- **分级标题**: 编辑区 H1-H6 标题拥有不同的字号和加粗效果，增强层级感。
+- **引用块美化**: 编辑区引用块带有左侧边框，并淡化了 `>` 符号。
 
-Since this is a developer build, you need to load it as an "Unpacked Extension" in Chrome.
+### 3. 极致的预览体验
+- **实时同步**: 毫秒级延迟的实时预览，支持双向滚动同步。
+- **YAML Front Matter**: 自动解析并美化显示文档头信息（Title, Date, Tags, Categories 等）。
+- **代码块增强**: 预览区代码块支持语法高亮，并配有悬浮的语言标识及一键复制按钮。
+- **HTML 支持**: 预览区支持渲染原生 HTML 标签（如 `<u>`, `<br>` 等）。
 
-1. **Build the Project**:
-   Ensure you have Node.js installed, then run:
+### 4. 生产力工具
+- **自动保存**: 修改内容后 2 秒内自动保存到本地文件，防止内容丢失。
+- **多主题支持**: 内置 **绿色 (默认)**、**紫色** 和 **蓝色** 三种主题色。
+- **深色模式**: 完美适配系统深色/日间模式，支持一键切换。
+- **字号调整**: 支持自定义编辑器和预览区的字体大小。
+
+## ⌨️ 快捷键
+
+| 功能 | 快捷键 (Mac / Win) |
+| --- | --- |
+| **保存** | `Cmd/Ctrl + S` |
+| **加粗** | `Cmd/Ctrl + B` |
+| **斜体** | `Cmd/Ctrl + I` |
+| **下划线** | `Cmd/Ctrl + U` |
+| **删除线** | `Cmd/Ctrl + Shift + X` |
+| **行内代码** | `Cmd/Ctrl + ` ` (选中内容时) |
+| **打开链接** | `Cmd/Ctrl + Click` |
+
+## 🚀 安装与开发
+
+由于这是一个开发者版本，您需要将其作为“已解压的扩展程序”加载到 Chrome 中。
+
+1. **构建项目**:
+   确保已安装 Node.js，然后运行：
    ```bash
    npm install
    npm run build
    ```
-   This will create a `dist` folder containing the extension.
+   这将在 `dist` 文件夹中生成扩展程序。
 
-2. **Load into Chrome**:
-   - Open Chrome and navigate to `chrome://extensions/`.
-   - Enable **Developer mode** (toggle in the top-right corner).
-   - Click **Load unpacked** (top-left).
-   - Select the `dist` folder inside the `LocalMD` project directory.
+2. **加载到 Chrome**:
+   - 打开 Chrome，访问 `chrome://extensions/`。
+   - 开启右上角的 **开发者模式**。
+   - 点击 **加载已解压的扩展程序**。
+   - 选择项目目录下的 `dist` 文件夹。
 
-3. **Usage**:
-   - Click the **LocalMD** extension icon in your Chrome toolbar.
-   - A new tab will open with the editor.
-   - Click the "Open" icon or drag a `.md` file to start editing.
+## 🛠️ 技术栈
 
-## Tech Stack
+- **框架**: React + TypeScript
+- **构建工具**: Vite
+- **编辑器核心**: CodeMirror 6
+- **预览渲染**: React Markdown + Remark GFM + Rehype Raw
+- **样式**: Tailwind CSS
+- **存储**: IndexedDB (idb-keyval) + LocalStorage
 
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- React Markdown + Remark GFM
-- File System Access API
-
-## License
+## 📄 开源协议
 
 MIT
