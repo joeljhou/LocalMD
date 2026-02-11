@@ -124,7 +124,7 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
         prose-img:rounded-lg prose-img:shadow-md
         prose-blockquote:border-l-4 prose-blockquote:border-[var(--c-brand)]
         prose-code:before:content-none prose-code:after:content-none
-        prose-code:bg-[#f8f8f8] prose-code:text-[#d9712b] prose-code:font-mono prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+        prose-code:bg-[#f4f5f7] prose-code:text-[#d9712b] prose-code:font-mono prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
         dark:prose-code:bg-[#2d2d2d] dark:prose-code:text-[#d9712b]
         prose-em:italic
       `}
@@ -229,7 +229,11 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
                 theme={theme} 
               />
             ) : (
-              <code className={className} {...props}>
+              <code 
+                className={className} 
+                style={{ backgroundColor: theme === 'light' ? '#f4f5f7' : '#2d2d2d' }} 
+                {...props}
+              >
                 {children}
               </code>
             );
