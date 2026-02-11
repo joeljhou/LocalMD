@@ -78,28 +78,30 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             lineHeight: "1.6",
             padding: "0"
         },
+        ".cm-content, .cm-gutters": {
+            minHeight: "100%",
+            paddingTop: "2rem !important",
+            paddingBottom: "2rem !important"
+        },
         ".cm-content": {
-            padding: "2rem 0"
+            paddingLeft: "0",
+            paddingRight: "0"
         },
         ".cm-gutters": {
             backgroundColor: "transparent !important",
             borderRight: "none !important",
-            color: "var(--c-text-lighter)",
-            padding: "2rem 0"
+            color: "var(--c-text-lighter)"
         },
         ".cm-line": {
             padding: "0 2px 0 4px"
         },
         ".cm-gutter-element": {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
             padding: "0 10px !important"
         },
         // Table Widget Styles
         ".cm-md-table-widget": {
             borderCollapse: "collapse",
-            margin: "1em 0",
+            margin: "0",
             fontSize: "0.9em",
             userSelect: "none"
         },
@@ -160,12 +162,12 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             textDecoration: "none !important"
         },
         ".cm-header-mark": { color: "#666666 !important" },
-        ".cm-header-1": { fontSize: "2.0em", fontWeight: "bold" },
-        ".cm-header-2": { fontSize: "1.75em", fontWeight: "bold" },
-        ".cm-header-3": { fontSize: "1.5em", fontWeight: "bold" },
-        ".cm-header-4": { fontSize: "1.25em", fontWeight: "bold" },
-        ".cm-header-5": { fontSize: "1.1em", fontWeight: "bold" },
-        ".cm-header-6": { fontSize: "1.0em", fontWeight: "bold", fontStyle: "italic" },
+        ".cm-header-1": { fontSize: "2.0em", fontWeight: "bold", lineHeight: "1.2" },
+        ".cm-header-2": { fontSize: "1.75em", fontWeight: "bold", lineHeight: "1.2" },
+        ".cm-header-3": { fontSize: "1.5em", fontWeight: "bold", lineHeight: "1.2" },
+        ".cm-header-4": { fontSize: "1.25em", fontWeight: "bold", lineHeight: "1.2" },
+        ".cm-header-5": { fontSize: "1.1em", fontWeight: "bold", lineHeight: "1.2" },
+        ".cm-header-6": { fontSize: "1.0em", fontWeight: "bold", fontStyle: "italic", lineHeight: "1.2" },
         // Inline Styles
         ".cm-inline-code": {
             backgroundColor: "var(--c-bg-light)",

@@ -521,10 +521,13 @@ function getTableDecorations(state: EditorState): DecorationSet {
 
         if (!isCursorInside) {
           const tableText = state.sliceDoc(node.from, node.to);
+          const lineStart = state.doc.lineAt(node.from).from;
+          const lineEnd = state.doc.lineAt(node.to).to;
+          
           decorations.push(Decoration.replace({
             widget: new TableWidget(tableText, node.from),
             block: true
-          }).range(node.from, node.to));
+          }).range(lineStart, lineEnd));
         } else {
             // Optional: You could add table line styling here if needed, 
             // but for now we'll just keep the default behavior when focused

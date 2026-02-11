@@ -46,7 +46,7 @@ const CodeBlock = React.memo(({ language, value, theme }: { language: string, va
       <SyntaxHighlighter
         style={theme === 'dark' ? oneDark : oneLight}
         language={language}
-        PreTag="pre"
+        PreTag="div"
         customStyle={{ 
           margin: 0, 
           padding: '1.25rem',
@@ -58,7 +58,9 @@ const CodeBlock = React.memo(({ language, value, theme }: { language: string, va
           style: {
             padding: 0,
             margin: 0,
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
+            display: 'block',
+            whiteSpace: 'pre'
           }
         }}
       >
@@ -78,7 +80,7 @@ export const Preview = React.memo(({ content, theme, scrollRatio, fontSize }: Pr
     try {
       // Custom Front Matter parsing
       const FRONT_MATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---/;
-      const match = content.trimStart().match(FRONT_MATTER_REGEX);
+      const match = content.match(FRONT_MATTER_REGEX);
       
       let mdContent = content;
       let data: Record<string, any> = {};
@@ -89,7 +91,7 @@ export const Preview = React.memo(({ content, theme, scrollRatio, fontSize }: Pr
           if (typeof parsed === 'object' && parsed !== null) {
             data = parsed as Record<string, any>;
             // Extract content after front matter
-            mdContent = content.trimStart().slice(match[0].length).trimStart();
+            mdContent = content.slice(match[0].length);
           }
         } catch (e) {
           console.error('YAML parsing error:', e);
