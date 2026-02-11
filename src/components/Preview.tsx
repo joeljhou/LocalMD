@@ -46,8 +46,21 @@ const CodeBlock = React.memo(({ language, value, theme }: { language: string, va
       <SyntaxHighlighter
         style={theme === 'dark' ? oneDark : oneLight}
         language={language}
-        PreTag="div"
-        customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.9em' }}
+        PreTag="pre"
+        customStyle={{ 
+          margin: 0, 
+          padding: '1.25rem',
+          borderRadius: 0, 
+          fontSize: '0.9em',
+          backgroundColor: 'transparent' 
+        }}
+        codeTagProps={{
+          style: {
+            padding: 0,
+            margin: 0,
+            backgroundColor: 'transparent'
+          }
+        }}
       >
         {value}
       </SyntaxHighlighter>
@@ -118,7 +131,7 @@ export const Preview = React.memo(({ content, theme, scrollRatio, fontSize }: Pr
       return !inline && match ? (
         <CodeBlock 
           language={match[1]} 
-          value={String(children).replace(/\n$/, '')} 
+          value={String(children).trim()} 
           theme={theme} 
         />
       ) : (

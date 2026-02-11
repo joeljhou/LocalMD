@@ -75,7 +75,8 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
         },
         ".cm-scroller": {
             fontFamily: "var(--font-code) !important",
-            lineHeight: "1.6"
+            lineHeight: "1.6",
+            padding: "0"
         },
         ".cm-content": {
             padding: "2rem 0"
@@ -83,7 +84,17 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
         ".cm-gutters": {
             backgroundColor: "transparent !important",
             borderRight: "none !important",
-            color: "var(--c-text-lighter)"
+            color: "var(--c-text-lighter)",
+            padding: "2rem 0"
+        },
+        ".cm-line": {
+            padding: "0 2px 0 4px"
+        },
+        ".cm-gutter-element": {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            padding: "0 10px !important"
         },
         // Table Widget Styles
         ".cm-md-table-widget": {
