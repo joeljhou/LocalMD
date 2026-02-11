@@ -30,7 +30,13 @@ function App() {
   const { theme, toggleTheme, accent, changeAccent } = useTheme();
   
   const lastModifiedRef = useRef<number>(0);
+  const markdownRef = useRef<string>(markdown);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync ref with state
+  useEffect(() => {
+    markdownRef.current = markdown;
+  }, [markdown]);
 
   const loadFile = async (handle: FileSystemFileHandle) => {
     try {
@@ -171,9 +177,11 @@ function App() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (contentToSave?: string) => {
     try {
       let handle = fileHandle;
+      const content = contentToSave !== undefined ? contentToSave : markdownRef.current;
+      
       if (!handle) {
         // Save As
         handle = await window.showSaveFilePicker({
@@ -188,7 +196,7 @@ function App() {
       
       if (handle) {
         const writable = await handle.createWritable();
-        await writable.write(markdown);
+        await writable.write(content);
         await writable.close();
         
         // Update last modified timestamp
@@ -204,6 +212,7 @@ function App() {
 
   const handleChange = (value: string) => {
     setMarkdown(value);
+    markdownRef.current = value; // Immediate sync for auto-save
     setIsModified(true);
 
     // Auto-save logic with debounce (2 seconds)
@@ -213,7 +222,7 @@ function App() {
 
     if (fileHandle) {
       autoSaveTimerRef.current = setTimeout(() => {
-        handleSave();
+        handleSave(value);
       }, 2000);
     }
   };
