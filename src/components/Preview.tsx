@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -14,7 +14,8 @@ interface PreviewProps {
   fontSize: number;
 }
 
-const CodeBlock = ({ language, value, theme }: { language: string, value: string, theme: 'light' | 'dark' }) => {
+// 1. Memoize CodeBlock to prevent re-renders when content doesn't change
+const CodeBlock = React.memo(({ language, value, theme }: { language: string, value: string, theme: 'light' | 'dark' }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -52,15 +53,15 @@ const CodeBlock = ({ language, value, theme }: { language: string, value: string
       </SyntaxHighlighter>
     </div>
   );
-};
+});
 
-export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps) {
+// 2. Memoize the entire Preview component
+export const Preview = React.memo(({ content, theme, scrollRatio, fontSize }: PreviewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [parsedContent, setParsedContent] = useState('');
-  const [frontMatter, setFrontMatter] = useState<Record<string, any>>({});
   const [showFrontMatter, setShowFrontMatter] = useState(true);
 
-  useEffect(() => {
+  // 3. Move parsing logic to useMemo to avoid re-parsing on scrollRatio/theme/fontSize changes
+  const { parsedContent, frontMatter } = useMemo(() => {
     try {
       // Custom Front Matter parsing
       const FRONT_MATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---/;
@@ -93,12 +94,10 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
         delete normalizedData.category;
       }
 
-      setParsedContent(mdContent);
-      setFrontMatter(normalizedData);
+      return { parsedContent: mdContent, frontMatter: normalizedData };
     } catch (e) {
       // Fallback if parsing fails
-      setParsedContent(content);
-      setFrontMatter({});
+      return { parsedContent: content, frontMatter: {} };
     }
   }, [content]);
 
@@ -111,6 +110,28 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
   }, [scrollRatio]);
 
   const hasFrontMatter = Object.keys(frontMatter).length > 0;
+
+  // 4. Memoize ReactMarkdown components
+  const components = useMemo(() => ({
+    code({node, inline, className, children, ...props}: any) {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match ? (
+        <CodeBlock 
+          language={match[1]} 
+          value={String(children).replace(/\n$/, '')} 
+          theme={theme} 
+        />
+      ) : (
+        <code 
+          className={className} 
+          style={{ backgroundColor: theme === 'light' ? '#f4f5f7' : '#2d2d2d' }} 
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    }
+  }), [theme]);
 
   return (
     <div 
@@ -219,29 +240,12 @@ export function Preview({ content, theme, scrollRatio, fontSize }: PreviewProps)
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
-        components={{
-          code({node, inline, className, children, ...props}: any) {
-            const match = /language-(\w+)/.exec(className || '');
-            return !inline && match ? (
-              <CodeBlock 
-                language={match[1]} 
-                value={String(children).replace(/\n$/, '')} 
-                theme={theme} 
-              />
-            ) : (
-              <code 
-                className={className} 
-                style={{ backgroundColor: theme === 'light' ? '#f4f5f7' : '#2d2d2d' }} 
-                {...props}
-              >
-                {children}
-              </code>
-            );
-          }
-        }}
+        components={components}
       >
         {parsedContent}
       </ReactMarkdown>
     </div>
   );
-}
+});
+
+Preview.displayName = 'Preview';

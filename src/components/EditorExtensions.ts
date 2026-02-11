@@ -56,33 +56,33 @@ export const toggleStyle = (view: EditorView, symbol: string, endSymbol?: string
 
 const codeBlockClass = 'cm-code-block-bg';
 
-// --- Helper: Deduplicate Decorations ---
+// --- Helper: Deduplicate Decorations (Optimized) ---
 function deduplicateDecorations(decorations: Range<Decoration>[]): Range<Decoration>[] {
-  if (decorations.length === 0) return decorations;
+  if (decorations.length <= 1) return decorations;
   
   // Sort by 'from' position, then by 'to' position
+  // This is the most expensive part, but necessary for Decoration.set
   decorations.sort((a, b) => a.from - b.from || a.to - b.to);
   
   const uniqueDecorations: Range<Decoration>[] = [];
   let lastFrom = -1;
   let lastTo = -1;
-  let lastSpec = "";
+  let lastValue = null;
   
   for (const deco of decorations) {
-    // We consider a decoration unique if its range OR its spec (class/widget/etc) is different
-    const currentSpec = JSON.stringify(deco.value.spec);
-    
-    if (deco.from !== lastFrom || deco.to !== lastTo || currentSpec !== lastSpec) {
+    if (deco.from !== lastFrom || deco.to !== lastTo || deco.value !== lastValue) {
       uniqueDecorations.push(deco);
       lastFrom = deco.from;
       lastTo = deco.to;
-      lastSpec = currentSpec;
+      lastValue = deco.value;
     }
   }
   return uniqueDecorations;
 }
 
 // --- Code Block Highlighting ---
+
+const codeBlockLineDecoration = Decoration.line({ class: codeBlockClass });
 
 function getDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
@@ -102,17 +102,14 @@ function getDecorations(view: EditorView): DecorationSet {
           const startLine = doc.lineAt(node.from);
           const endLine = doc.lineAt(node.to);
           
-          // Start from the line AFTER the opening delimiter
           const startLineNumber = startLine.number + 1;
           
-          // Determine where to end
           let endLineNumber = endLine.number;
           const endLineText = endLine.text.trim();
           if (endLineText.startsWith('```') || endLineText.startsWith('~~~')) {
             endLineNumber = endLine.number - 1;
           }
 
-          // Optimized: Only loop through lines that are within the current visible range
           const visibleStart = doc.lineAt(from).number;
           const visibleEnd = doc.lineAt(to).number;
           
@@ -123,9 +120,7 @@ function getDecorations(view: EditorView): DecorationSet {
             if (i > doc.lines) continue;
             
             const line = doc.line(i);
-             decorations.push(Decoration.line({
-              class: codeBlockClass
-            }).range(line.from));
+             decorations.push(codeBlockLineDecoration.range(line.from));
           }
         }
       },
@@ -149,9 +144,7 @@ function getDecorations(view: EditorView): DecorationSet {
         if (endLineNumber !== -1) {
             for (let i = 2; i < endLineNumber; i++) {
                 const line = doc.line(i);
-                decorations.push(Decoration.line({
-                    class: codeBlockClass
-                }).range(line.from));
+                decorations.push(codeBlockLineDecoration.range(line.from));
             }
         }
     }
@@ -524,15 +517,17 @@ function getTableDecorations(state: EditorState): DecorationSet {
   tree.iterate({
     enter: (node) => {
       if (node.name === 'Table') {
-        // Check if cursor is inside the table
         const isCursorInside = selection.head >= node.from && selection.head <= node.to;
 
         if (!isCursorInside) {
           const tableText = state.sliceDoc(node.from, node.to);
           decorations.push(Decoration.replace({
             widget: new TableWidget(tableText, node.from),
-            block: true // Block decorations are allowed in StateFields
+            block: true
           }).range(node.from, node.to));
+        } else {
+            // Optional: You could add table line styling here if needed, 
+            // but for now we'll just keep the default behavior when focused
         }
       }
     }
@@ -556,6 +551,19 @@ export const tableEditorField = StateField.define<DecorationSet>({
 
 // --- Inline Styles (WYSIWYG) ---
 
+// Pre-create common decorations
+const inlineCodeDecoration = Decoration.mark({ class: 'cm-inline-code' });
+const inlineCodeActiveDecoration = Decoration.mark({ class: 'cm-inline-code cm-semantic-active' });
+const boldDecoration = Decoration.mark({ class: 'cm-bold' });
+const boldActiveDecoration = Decoration.mark({ class: 'cm-bold cm-semantic-active' });
+const italicDecoration = Decoration.mark({ class: 'cm-italic' });
+const italicActiveDecoration = Decoration.mark({ class: 'cm-italic cm-semantic-active' });
+const strikethroughDecoration = Decoration.mark({ class: 'cm-strikethrough' });
+const strikethroughActiveDecoration = Decoration.mark({ class: 'cm-strikethrough cm-semantic-active' });
+const underlineDecoration = Decoration.mark({ class: 'cm-underline' });
+const underlineActiveDecoration = Decoration.mark({ class: 'cm-underline cm-semantic-active' });
+const hiddenSymbolDecoration = Decoration.mark({ class: 'cm-hidden-symbol' });
+
 function getInlineStyleDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const { state } = view;
@@ -570,25 +578,21 @@ function getInlineStyleDecorations(view: EditorView): DecorationSet {
       to,
       enter: (node) => {
         const isCursorInside = selection.head >= node.from && selection.head <= node.to;
-        const activeClass = isCursorInside ? ' cm-semantic-active' : '';
 
-        // 1. Inline Code (Highlight but don't hide backticks)
+        // 1. Inline Code
         if (node.name === 'InlineCode') {
-          decorations.push(Decoration.mark({
-            class: 'cm-inline-code' + activeClass
-          }).range(node.from, node.to));
+          decorations.push((isCursorInside ? inlineCodeActiveDecoration : inlineCodeDecoration).range(node.from, node.to));
         }
 
         // 2. Bold (StrongEmphasis)
         if (node.name === 'StrongEmphasis') {
-          decorations.push(Decoration.mark({ class: 'cm-bold' + activeClass }).range(node.from, node.to));
+          decorations.push((isCursorInside ? boldActiveDecoration : boldDecoration).range(node.from, node.to));
           if (!isCursorInside) {
-            // Hide ** marks
             const cursor = node.node.cursor();
             if (cursor.firstChild()) {
               do {
                 if (cursor.name === 'EmphasisMark') {
-                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                  decorations.push(hiddenSymbolDecoration.range(cursor.from, cursor.to));
                 }
               } while (cursor.nextSibling());
             }
@@ -597,14 +601,13 @@ function getInlineStyleDecorations(view: EditorView): DecorationSet {
 
         // 3. Italic (Emphasis)
         if (node.name === 'Emphasis') {
-          decorations.push(Decoration.mark({ class: 'cm-italic' + activeClass }).range(node.from, node.to));
+          decorations.push((isCursorInside ? italicActiveDecoration : italicDecoration).range(node.from, node.to));
           if (!isCursorInside) {
-            // Hide * or _ marks
             const cursor = node.node.cursor();
             if (cursor.firstChild()) {
               do {
                 if (cursor.name === 'EmphasisMark') {
-                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                  decorations.push(hiddenSymbolDecoration.range(cursor.from, cursor.to));
                 }
               } while (cursor.nextSibling());
             }
@@ -613,13 +616,13 @@ function getInlineStyleDecorations(view: EditorView): DecorationSet {
 
         // 4. Strikethrough
         if (node.name === 'Strikethrough') {
-          decorations.push(Decoration.mark({ class: 'cm-strikethrough' + activeClass }).range(node.from, node.to));
+          decorations.push((isCursorInside ? strikethroughActiveDecoration : strikethroughDecoration).range(node.from, node.to));
           if (!isCursorInside) {
             const cursor = node.node.cursor();
             if (cursor.firstChild()) {
               do {
                 if (cursor.name === 'StrikethroughMark') {
-                  decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(cursor.from, cursor.to));
+                  decorations.push(hiddenSymbolDecoration.range(cursor.from, cursor.to));
                 }
               } while (cursor.nextSibling());
             }
@@ -627,13 +630,11 @@ function getInlineStyleDecorations(view: EditorView): DecorationSet {
         }
 
         // 5. Underline (<u>内容</u>)
-        // Note: Markdown parser often treats <u> as HTMLTag
         if (node.name === 'HTMLTag') {
             const text = state.sliceDoc(node.from, node.to).toLowerCase();
             if (text.startsWith('<u>')) {
-                // Find closing tag
                 let pos = node.to;
-                const endPos = Math.min(state.doc.length, node.to + 1000); // Limit search range
+                const endPos = Math.min(state.doc.length, node.to + 1000);
                 const docText = state.sliceDoc(pos, endPos);
                 const closeIndex = docText.toLowerCase().indexOf('</u>');
                 
@@ -644,30 +645,19 @@ function getInlineStyleDecorations(view: EditorView): DecorationSet {
                     const closeTagEnd = closeTagStart + 4;
                     
                     const isAnyPartFocused = (selection.head >= node.from && selection.head <= closeTagEnd);
-                    const activeClassRange = isAnyPartFocused ? ' cm-semantic-active' : '';
 
-                    // Apply underline to content
-                    decorations.push(Decoration.mark({ class: 'cm-underline' + activeClassRange }).range(contentStart, contentEnd));
+                    decorations.push((isAnyPartFocused ? underlineActiveDecoration : underlineDecoration).range(contentStart, contentEnd));
                     
                     if (!isAnyPartFocused) {
-                        // Hide tags if not focused
-                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
-                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(closeTagStart, closeTagEnd));
+                        decorations.push(hiddenSymbolDecoration.range(node.from, node.to));
+                        decorations.push(hiddenSymbolDecoration.range(closeTagStart, closeTagEnd));
                     }
                 } else {
-                    // No closing tag found, just treat the <u> tag normally (maybe it's just a raw tag)
                     if (!isCursorInside) {
-                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
+                        decorations.push(hiddenSymbolDecoration.range(node.from, node.to));
                     }
                 }
             } else if (text === '</u>') {
-                // Closing tag: we only need to hide it if NOT part of a focused <u>...</u> range
-                // But wait, the opening tag logic above already handles hiding BOTH tags if they form a pair.
-                // However, the tree iteration will hit </u> eventually. 
-                // We need to check if it's already been handled or if it should be hidden.
-                
-                // To avoid double-hiding or missing it, let's see:
-                // If we are at </u>, we look BACK for <u>.
                 const startPos = Math.max(0, node.from - 1000);
                 const docTextBefore = state.sliceDoc(startPos, node.from);
                 const openIndex = docTextBefore.toLowerCase().lastIndexOf('<u>');
@@ -675,14 +665,12 @@ function getInlineStyleDecorations(view: EditorView): DecorationSet {
                 if (openIndex !== -1) {
                     const openTagStart = startPos + openIndex;
                     const isAnyPartFocused = (selection.head >= openTagStart && selection.head <= node.to);
-                    
                     if (!isAnyPartFocused) {
-                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
+                        decorations.push(hiddenSymbolDecoration.range(node.from, node.to));
                     }
                 } else {
-                    // No opening tag found, hide it if not focused
                     if (!isCursorInside) {
-                        decorations.push(Decoration.mark({ class: 'cm-hidden-symbol' }).range(node.from, node.to));
+                        decorations.push(hiddenSymbolDecoration.range(node.from, node.to));
                     }
                 }
             }
@@ -713,6 +701,9 @@ export const inlineStylePlugin = ViewPlugin.fromClass(
 
 // --- Blockquote Styling ---
 
+const blockquoteLineDecoration = Decoration.line({ class: 'cm-blockquote-line' });
+const blockquoteMarkDecoration = Decoration.mark({ class: 'cm-blockquote-mark' });
+
 function getBlockquoteDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const { state } = view;
@@ -730,7 +721,6 @@ function getBlockquoteDecorations(view: EditorView): DecorationSet {
             const startLine = doc.lineAt(node.from);
             const endLine = doc.lineAt(node.to);
 
-            // Optimized: Only loop through lines that are within the current visible range
             const visibleStart = doc.lineAt(from).number;
             const visibleEnd = doc.lineAt(to).number;
             
@@ -739,17 +729,12 @@ function getBlockquoteDecorations(view: EditorView): DecorationSet {
 
             for (let i = effectiveStart; i <= effectiveEnd; i++) {
                 const line = doc.line(i);
-                decorations.push(Decoration.line({
-                    class: 'cm-blockquote-line'
-                }).range(line.from));
+                decorations.push(blockquoteLineDecoration.range(line.from));
             }
         }
         
         if (node.name === 'QuoteMark') {
-            // Fade out the '>' character
-            decorations.push(Decoration.mark({
-                class: 'cm-blockquote-mark'
-            }).range(node.from, node.to));
+            decorations.push(blockquoteMarkDecoration.range(node.from, node.to));
         }
       }
     });
@@ -779,6 +764,18 @@ export const blockquotePlugin = ViewPlugin.fromClass(
 
 // --- Header Font Size & Styling ---
 
+// Pre-create common decorations to avoid object allocation during updates
+const headerLineDecorations = [
+  Decoration.line({ class: 'cm-header-1' }),
+  Decoration.line({ class: 'cm-header-2' }),
+  Decoration.line({ class: 'cm-header-3' }),
+  Decoration.line({ class: 'cm-header-4' }),
+  Decoration.line({ class: 'cm-header-5' }),
+  Decoration.line({ class: 'cm-header-6' })
+];
+const headerMarkDecoration = Decoration.mark({ class: 'cm-header-mark' });
+const hiddenHeaderReplace = Decoration.replace({});
+
 function getHeaderDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const { state } = view;
@@ -794,15 +791,13 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
       enter: (node) => {
         if (node.name.startsWith('ATXHeading')) {
           const level = parseInt(node.name.slice(-1));
-          if (isNaN(level)) return;
+          if (isNaN(level) || level < 1 || level > 6) return;
 
           const line = state.doc.lineAt(node.from);
           const isCursorInside = selection.head >= line.from && selection.head <= line.to;
           
           // Apply heading style to the entire line
-          decorations.push(Decoration.line({
-            class: `cm-header-${level}`
-          }).range(line.from));
+          decorations.push(headerLineDecorations[level - 1].range(line.from));
 
           // Handle # symbols
           const cursor = node.node.cursor();
@@ -811,15 +806,14 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
               if (cursor.name === 'HeaderMark') {
                 if (!isCursorInside) {
                   // Hide # symbols AND the space after them when cursor is NOT inside
-                  // Usually there's a space after #. Check if next character is a space.
                   let end = cursor.to;
                   if (state.doc.sliceString(cursor.to, cursor.to + 1) === ' ') {
                     end++;
                   }
-                  decorations.push(Decoration.replace({}).range(cursor.from, end));
+                  decorations.push(hiddenHeaderReplace.range(cursor.from, end));
                 } else {
                   // Show # symbols with custom color when cursor IS inside
-                  decorations.push(Decoration.mark({ class: 'cm-header-mark' }).range(cursor.from, cursor.to));
+                  decorations.push(headerMarkDecoration.range(cursor.from, cursor.to));
                 }
               }
             } while (cursor.nextSibling());
@@ -828,19 +822,15 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
           const level = node.name.endsWith('1') ? 1 : 2;
           const line = state.doc.lineAt(node.from);
           
-          decorations.push(Decoration.line({
-              class: `cm-header-${level}`
-          }).range(line.from));
+          decorations.push(headerLineDecorations[level - 1].range(line.from));
 
-          // In Setext headings, the HeaderMark (=== or ---) is usually on the next line
-          // But it's part of the same node. We only hide it if cursor is not in the whole heading node.
           const nodeIsActive = selection.head >= node.from && selection.head <= node.to;
           if (!nodeIsActive) {
              const cursor = node.node.cursor();
              if (cursor.firstChild()) {
                  do {
                      if (cursor.name === 'HeaderMark') {
-                         decorations.push(Decoration.replace({}).range(cursor.from, cursor.to));
+                         decorations.push(hiddenHeaderReplace.range(cursor.from, cursor.to));
                      }
                  } while (cursor.nextSibling());
              }

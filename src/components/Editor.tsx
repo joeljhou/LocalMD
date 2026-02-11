@@ -136,7 +136,7 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
             outline: "none !important",
             backgroundImage: "none !important",
             borderImage: "none !important",
-            color: theme === 'dark' ? "#ffffff !important" : "var(--c-text)"
+            color: theme === 'dark' ? "#e6e6e6 !important" : "var(--c-text)"
         },
         // Target the line element directly for themes that apply borders there
         ".cm-line.cm-header-1, .cm-line.cm-header-2, .cm-line.cm-header-3, .cm-line.cm-header-4, .cm-line.cm-header-5, .cm-line.cm-header-6": {

@@ -211,11 +211,17 @@ function App() {
   };
 
   const handleChange = (value: string) => {
+    // 1. React State Update (triggers re-render)
     setMarkdown(value);
-    markdownRef.current = value; // Immediate sync for auto-save
+    
+    // 2. Ref Update (sync for auto-save, doesn't trigger re-render)
+    markdownRef.current = value;
+    
+    // 3. Mark as modified
     setIsModified(true);
 
-    // Auto-save logic with debounce (2 seconds)
+    // 4. Auto-save logic with debounce (2 seconds)
+    // Using handleSave directly from here to avoid unnecessary dependency on state
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
