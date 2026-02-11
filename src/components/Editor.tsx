@@ -4,7 +4,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
-import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorPlugin, blockquotePlugin, headerPlugin, imagePreviewPlugin } from './EditorExtensions';
+import { codeBlockHighlight, linkHighlightPlugin, linkClickHandler, tableEditorField, blockquotePlugin, headerPlugin, imagePreviewPlugin } from './EditorExtensions';
 
 interface EditorProps {
   value: string;
@@ -41,7 +41,7 @@ export function Editor({ value, onChange, theme, onScroll, fontSize }: EditorPro
     codeBlockHighlight,
     linkHighlightPlugin,
     linkClickHandler,
-    tableEditorPlugin,
+    tableEditorField,
     blockquotePlugin,
     headerPlugin,
     imagePreviewPlugin,

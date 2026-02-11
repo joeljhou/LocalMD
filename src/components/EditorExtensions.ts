@@ -1,21 +1,30 @@
 import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate, WidgetType, hoverTooltip } from '@codemirror/view';
-import { syntaxTree } from '@codemirror/language';
-import { type Range, StateField, EditorState } from '@codemirror/state';
+import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
+import { type Range, StateField, type EditorState } from '@codemirror/state';
 
 const codeBlockClass = 'cm-code-block-bg';
 
 // --- Helper: Deduplicate Decorations ---
 function deduplicateDecorations(decorations: Range<Decoration>[]): Range<Decoration>[] {
+  if (decorations.length === 0) return decorations;
+  
+  // Sort by 'from' position, then by 'to' position
   decorations.sort((a, b) => a.from - b.from || a.to - b.to);
+  
   const uniqueDecorations: Range<Decoration>[] = [];
   let lastFrom = -1;
   let lastTo = -1;
+  let lastSpec = "";
   
   for (const deco of decorations) {
-    if (deco.from !== lastFrom || deco.to !== lastTo) {
+    // We consider a decoration unique if its range OR its spec (class/widget/etc) is different
+    const currentSpec = JSON.stringify(deco.value.spec);
+    
+    if (deco.from !== lastFrom || deco.to !== lastTo || currentSpec !== lastSpec) {
       uniqueDecorations.push(deco);
       lastFrom = deco.from;
       lastTo = deco.to;
+      lastSpec = currentSpec;
     }
   }
   return uniqueDecorations;
@@ -28,9 +37,12 @@ function getDecorations(view: EditorView): DecorationSet {
   const { state } = view;
   const doc = state.doc;
 
-  // 1. Syntax Tree based highlighting for FencedCode
+  // Ensure syntax tree is available for the current visible ranges
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
+    const tree = ensureSyntaxTree(state, to, 50);
+    if (!tree) continue;
+
+    tree.iterate({
       from,
       to,
       enter: (node) => {
@@ -48,8 +60,14 @@ function getDecorations(view: EditorView): DecorationSet {
             endLineNumber = endLine.number - 1;
           }
 
-          // Apply decoration to content lines
-          for (let i = startLineNumber; i <= endLineNumber; i++) {
+          // Optimized: Only loop through lines that are within the current visible range
+          const visibleStart = doc.lineAt(from).number;
+          const visibleEnd = doc.lineAt(to).number;
+          
+          const effectiveStart = Math.max(startLineNumber, visibleStart);
+          const effectiveEnd = Math.min(endLineNumber, visibleEnd);
+
+          for (let i = effectiveStart; i <= effectiveEnd; i++) {
             if (i > doc.lines) continue;
             
             const line = doc.line(i);
@@ -168,7 +186,10 @@ function getLinkDecorations(view: EditorView): DecorationSet {
   const selection = state.selection.main;
 
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
+    const tree = ensureSyntaxTree(state, to, 50);
+    if (!tree) continue;
+
+    tree.iterate({
       from,
       to,
       enter: (node) => {
@@ -182,14 +203,14 @@ function getLinkDecorations(view: EditorView): DecorationSet {
            // Use a cursor to inspect children
            const cursor = node.node.cursor();
            if (cursor.firstChild()) {
-               while (cursor.nextSibling()) {
+               do {
                    // Look for URL
                    if (cursor.name === 'URL') {
                        urlStart = cursor.from;
                        urlEnd = cursor.to;
                        urlContent = state.sliceDoc(urlStart, urlEnd);
                    }
-               }
+               } while (cursor.nextSibling());
            }
            
            // 1. Decorate Entire Link (Text + URL) with Blue Color
@@ -199,9 +220,15 @@ function getLinkDecorations(view: EditorView): DecorationSet {
 
            // 2. Collapse URL if cursor NOT inside
            if (urlStart !== -1 && urlEnd !== -1 && !isCursorInside) {
-              decorations.push(Decoration.replace({
-                widget: new EllipsisWidget(urlContent, urlStart)
-              }).range(urlStart, urlEnd));
+              // Ensure the URL doesn't span multiple lines (unlikely for Markdown URLs but safe to check)
+              const startLine = state.doc.lineAt(urlStart);
+              const endLine = state.doc.lineAt(urlEnd);
+              
+              if (startLine.number === endLine.number) {
+                  decorations.push(Decoration.replace({
+                    widget: new EllipsisWidget(urlContent, urlStart)
+                  }).range(urlStart, urlEnd));
+              }
            }
         }
       }
@@ -278,24 +305,23 @@ class TableWidget extends WidgetType {
     this.tableData = this.parseTable(rawTable);
   }
 
-  // Parse markdown table to 2D array
-  private parseTable(raw: string): string[][] {
-    return raw.split('\n')
-      .filter(line => line.trim() !== '')
-      .map(line => {
-        // Split by pipe, handle escaped pipes if possible (simplified here)
-        let row = line.split('|').map(cell => cell.trim());
-        // Remove first and last empty strings if they exist (standard markdown table format)
-        if (row[0] === '') row.shift();
-        if (row[row.length - 1] === '') row.pop();
-        return row;
-      });
-  }
-
   // Reconstruct markdown table from 2D array
   private generateTable(data: string[][]): string {
     // Simple generation without alignment padding for now
     return data.map(row => `| ${row.join(' | ')} |`).join('\n');
+  }
+
+  // Parse markdown table to 2D array
+  private parseTable(raw: string): string[][] {
+    const lines = raw.split('\n').filter(line => line.trim() !== '');
+    return lines.map(line => {
+      // Split by pipe, handle escaped pipes if possible (simplified here)
+      let row = line.split('|').map(cell => cell.trim());
+      // Remove first and last empty strings if they exist (standard markdown table format)
+      if (row[0] === '') row.shift();
+      if (row[row.length - 1] === '') row.pop();
+      return row;
+    });
   }
 
   // Helper to render cell content with markdown links
@@ -441,37 +467,39 @@ class TableWidget extends WidgetType {
 function getTableDecorations(state: EditorState): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const selection = state.selection.main;
+  const tree = syntaxTree(state);
 
-  syntaxTree(state).iterate({
-      enter: (node) => {
-          if (node.name === 'Table') {
-              // Check if cursor is inside the table
-              const isCursorInside = selection.head >= node.from && selection.head <= node.to;
+  tree.iterate({
+    enter: (node) => {
+      if (node.name === 'Table') {
+        // Check if cursor is inside the table
+        const isCursorInside = selection.head >= node.from && selection.head <= node.to;
 
-              if (!isCursorInside) {
-                const tableText = state.sliceDoc(node.from, node.to);
-                decorations.push(Decoration.replace({
-                    widget: new TableWidget(tableText, node.from)
-                }).range(node.from, node.to));
-              }
-          }
+        if (!isCursorInside) {
+          const tableText = state.sliceDoc(node.from, node.to);
+          decorations.push(Decoration.replace({
+            widget: new TableWidget(tableText, node.from),
+            block: true // Block decorations are allowed in StateFields
+          }).range(node.from, node.to));
+        }
       }
+    }
   });
 
   return Decoration.set(deduplicateDecorations(decorations));
 }
 
-export const tableEditorPlugin = StateField.define<DecorationSet>({
-    create(state) {
-        return getTableDecorations(state);
-    },
-    update(decorations, transaction) {
-        if (transaction.docChanged || transaction.selection) {
-            return getTableDecorations(transaction.state);
-        }
-        return decorations;
-    },
-    provide: f => EditorView.decorations.from(f)
+export const tableEditorField = StateField.define<DecorationSet>({
+  create(state) {
+    return getTableDecorations(state);
+  },
+  update(decorations, tr) {
+    if (tr.docChanged || tr.selection) {
+      return getTableDecorations(tr.state);
+    }
+    return decorations.map(tr.changes);
+  },
+  provide: f => EditorView.decorations.from(f)
 });
 
 // --- Blockquote Styling ---
@@ -479,20 +507,29 @@ export const tableEditorPlugin = StateField.define<DecorationSet>({
 function getBlockquoteDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const { state } = view;
+  const doc = state.doc;
 
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
+    const tree = ensureSyntaxTree(state, to, 50);
+    if (!tree) continue;
+
+    tree.iterate({
       from,
       to,
       enter: (node) => {
         if (node.name === 'Blockquote') {
-            // Add line decoration for the entire blockquote block
-            // We need to identify lines covered by this blockquote
-            const startLine = state.doc.lineAt(node.from);
-            const endLine = state.doc.lineAt(node.to);
+            const startLine = doc.lineAt(node.from);
+            const endLine = doc.lineAt(node.to);
 
-            for (let i = startLine.number; i <= endLine.number; i++) {
-                const line = state.doc.line(i);
+            // Optimized: Only loop through lines that are within the current visible range
+            const visibleStart = doc.lineAt(from).number;
+            const visibleEnd = doc.lineAt(to).number;
+            
+            const effectiveStart = Math.max(startLine.number, visibleStart);
+            const effectiveEnd = Math.min(endLine.number, visibleEnd);
+
+            for (let i = effectiveStart; i <= effectiveEnd; i++) {
+                const line = doc.line(i);
                 decorations.push(Decoration.line({
                     class: 'cm-blockquote-line'
                 }).range(line.from));
@@ -538,7 +575,10 @@ function getHeaderDecorations(view: EditorView): DecorationSet {
   const { state } = view;
 
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
+    const tree = ensureSyntaxTree(state, to, 50);
+    if (!tree) continue;
+
+    tree.iterate({
       from,
       to,
       enter: (node) => {
